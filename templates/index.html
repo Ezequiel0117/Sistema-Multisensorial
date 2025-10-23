@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Alerta Inclusiva</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Sistema Multisensorial de Alerta Inclusiva</h1>
+
+    <div class="panel">
+        <h3>Lecturas del Arduino</h3>
+        <p id="lectura">Esperando datos...</p>
+        <button onclick="encender()">Encender Buzzer</button>
+        <button onclick="apagar()">Apagar Buzzer</button>
+    </div>
+
+    <script>
+        function actualizar() {
+            fetch('/leer')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('lectura').innerText = data.lectura;
+                    
+                    if (data.alerta) {
+                        document.getElementById('lectura').classList.add('alerta-activa');
+                    } else {
+                        document.getElementById('lectura').classList.remove('alerta-activa');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al actualizar:', error);
+                    document.getElementById('lectura').innerText = 'Error de conexión';
+                });
+        }
+
+        function encender() {
+            fetch('/buzzer/on', {method: 'POST'})
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Buzzer encendido:', data);
+                })
+                .catch(error => {
+                    console.error('Error al encender buzzer:', error);
+                });
+        }
+
+        function apagar() {
+            fetch('/buzzer/off', {method: 'POST'})
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Buzzer apagado:', data);
+                })
+                .catch(error => {
+                    console.error('Error al apagar buzzer:', error);
+                });
+        }
+
+        // Actualizar cada segundo
+        setInterval(actualizar, 1000);
+        
+        // Llamar inmediatamente al cargar la página
+        actualizar();
+    </script>
+</body>
+</html>

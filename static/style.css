@@ -1,0 +1,192 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: #222;
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+h1 {
+    color: white;
+    font-size: 2.5em;
+    margin-bottom: 40px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    animation: fadeIn 0.8s ease;
+}
+
+.panel {
+    background: white;
+    display: inline-block;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    margin-top: 20px;
+    min-width: 400px;
+    animation: slideUp 0.6s ease;
+}
+
+.panel h3 {
+    color: #1e3c72;
+    font-size: 1.8em;
+    margin-bottom: 25px;
+    border-bottom: 3px solid #2a5298;
+    padding-bottom: 15px;
+}
+
+#lectura {
+    background: linear-gradient(135deg, #e8f4f8 0%, #d4e7f1 100%);
+    padding: 25px;
+    border-radius: 15px;
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #1e3c72;
+    margin: 25px 0;
+    border: 2px solid #2a5298;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+#lectura:hover {
+    transform: scale(1.02);
+}
+
+button {
+    margin: 15px 10px;
+    padding: 15px 35px;
+    border: none;
+    color: white;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+button:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 25px rgba(0,0,0,0.3);
+}
+
+button:active {
+    transform: translateY(-1px);
+}
+
+/* Botón Encender - Verde */
+button:first-of-type {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+button:first-of-type:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+}
+
+/* Botón Apagar - Rojo */
+button:last-of-type {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+button:last-of-type:hover {
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estados de alerta */
+.alerta-activa {
+    animation: pulso 1.5s infinite;
+    border-color: #dc3545 !important;
+    background: linear-gradient(135deg, #ffe0e0 0%, #ffd4d4 100%) !important;
+    color: #dc3545 !important;
+}
+
+@keyframes pulso {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1.8em;
+        margin-bottom: 30px;
+    }
+
+    .panel {
+        min-width: auto;
+        width: 90%;
+        padding: 30px 20px;
+    }
+
+    .panel h3 {
+        font-size: 1.4em;
+    }
+
+    #lectura {
+        font-size: 1.1em;
+        padding: 20px;
+    }
+
+    button {
+        width: 100%;
+        margin: 10px 0;
+    }
+}
