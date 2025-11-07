@@ -39,12 +39,12 @@ def leer():
         return jsonify({'lectura': data, 'alerta': False})
     return jsonify({'lectura': 'Sin datos', 'alerta': False})
 
-@app.route('/buzzer/<accion>', methods=['POST'])
-def buzzer(accion):
+@app.route('/led/<accion>', methods=['POST'])
+def led(accion):
     if accion == 'on':
-        arduino.write(b'B')
+        arduino.write(b'L')  # L mayúscula para encender
     elif accion == 'off':
-        arduino.write(b'b')
+        arduino.write(b'l')  # l minúscula para apagar
     return jsonify({'estado': accion})
 
 if __name__ == '__main__':

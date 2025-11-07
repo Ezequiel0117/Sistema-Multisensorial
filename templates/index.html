@@ -11,8 +11,8 @@
     <div class="panel">
         <h3>Lecturas del Arduino</h3>
         <p id="lectura">Esperando datos...</p>
-        <button onclick="encender()">Encender Buzzer</button>
-        <button onclick="apagar()">Apagar Buzzer</button>
+        <button onclick="encender()">Encender LED</button>
+        <button onclick="apagar()">Apagar LED</button>
     </div>
 
     <script>
@@ -35,24 +35,24 @@
         }
 
         function encender() {
-            fetch('/buzzer/on', {method: 'POST'})
+            fetch('/led/on', {method: 'POST'})
                 .then(res => res.json())
                 .then(data => {
-                    console.log('Buzzer encendido:', data);
+                    console.log('LED encendido:', data);
                 })
                 .catch(error => {
-                    console.error('Error al encender buzzer:', error);
+                    console.error('Error al encender LED:', error);
                 });
         }
 
         function apagar() {
-            fetch('/buzzer/off', {method: 'POST'})
+            fetch('/led/off', {method: 'POST'})
                 .then(res => res.json())
                 .then(data => {
-                    console.log('Buzzer apagado:', data);
+                    console.log('LED apagado:', data);
                 })
                 .catch(error => {
-                    console.error('Error al apagar buzzer:', error);
+                    console.error('Error al apagar LED:', error);
                 });
         }
 
