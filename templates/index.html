@@ -2,65 +2,154 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Alerta Inclusiva</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Alerta Inclusiva - Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Sistema Multisensorial de Alerta Inclusiva</h1>
-
-    <div class="panel">
-        <h3>Lecturas del Arduino</h3>
-        <p id="lectura">Esperando datos...</p>
-        <button onclick="encender()">Encender LED</button>
-        <button onclick="apagar()">Apagar LED</button>
+    <!-- Alerta de emergencia -->
+    <div id="alerta-emergencia" class="alerta-emergencia oculto">
+        <div class="alerta-contenido">
+            <div class="alerta-icono">⚠️</div>
+            <h2>¡ALERTA DE EMERGENCIA!</h2>
+            <p id="alerta-mensaje">Niveles peligrosos detectados</p>
+            <div class="alerta-detalles">
+                <span id="alerta-temp"></span>
+                <span id="alerta-humo"></span>
+            </div>
+        </div>
     </div>
 
-    <script>
-        function actualizar() {
-            fetch('/leer')
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('lectura').innerText = data.lectura;
-                    
-                    if (data.alerta) {
-                        document.getElementById('lectura').classList.add('alerta-activa');
-                    } else {
-                        document.getElementById('lectura').classList.remove('alerta-activa');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error al actualizar:', error);
-                    document.getElementById('lectura').innerText = 'Error de conexión';
-                });
-        }
+    <header>
+        <h1>🔔 Sistema Multisensorial de Alerta Inclusiva</h1>
+        <div class="estado-conexion">
+            <span id="estado-conexion" class="conectado">● Conectado</span>
+            <span id="ultima-actualizacion">Última actualización: --:--:--</span>
+        </div>
+    </header>
 
-        function encender() {
-            fetch('/led/on', {method: 'POST'})
-                .then(res => res.json())
-                .then(data => {
-                    console.log('LED encendido:', data);
-                })
-                .catch(error => {
-                    console.error('Error al encender LED:', error);
-                });
-        }
+    <div class="container">
+        <!-- Leyenda de niveles -->
+        <section class="leyenda-section">
+            <h3>📋 Niveles de Alerta</h3>
+            <div class="leyenda-grid">
+                <div class="leyenda-item bajo">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>BAJO</strong>
+                        <p>Temp: &lt;25°C | Humo: &lt;100 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item normal">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>NORMAL</strong>
+                        <p>Temp: 25-40°C | Humo: 100-200 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item alto">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>ALTO</strong>
+                        <p>Temp: 40-50°C | Humo: 200-300 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item peligro">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>PELIGRO</strong>
+                        <p>Temp: &gt;60°C | Humo: &gt;400 ppm</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        function apagar() {
-            fetch('/led/off', {method: 'POST'})
-                .then(res => res.json())
-                .then(data => {
-                    console.log('LED apagado:', data);
-                })
-                .catch(error => {
-                    console.error('Error al apagar LED:', error);
-                });
-        }
+        <!-- Panel de lecturas en tiempo real -->
+        <section class="panel-principal">
+            <h2>📊 Lecturas en Tiempo Real</h2>
+            
+            <div class="medidores-grid">
+                <!-- Medidor de Temperatura -->
+                <div class="medidor-card">
+                    <div class="medidor-header">
+                        <span class="icono">🌡️</span>
+                        <h3>Temperatura</h3>
+                    </div>
+                    <div class="medidor-valor">
+                        <span id="temp-valor" class="valor-grande">--</span>
+                        <span class="unidad">°C</span>
+                    </div>
+                    <div id="temp-estado" class="estado-indicador bajo">
+                        <span class="estado-texto">BAJO</span>
+                    </div>
+                    <div class="umbral-info">
+                        <small>Umbral de peligro: <strong>60°C</strong></small>
+                    </div>
+                </div>
 
-        // Actualizar cada segundo
-        setInterval(actualizar, 1000);
-        
-        // Llamar inmediatamente al cargar la página
-        actualizar();
-    </script>
+                <!-- Medidor de Humo -->
+                <div class="medidor-card">
+                    <div class="medidor-header">
+                        <span class="icono">💨</span>
+                        <h3>Humo / Gases</h3>
+                    </div>
+                    <div class="medidor-valor">
+                        <span id="humo-valor" class="valor-grande">--</span>
+                        <span class="unidad">ppm</span>
+                    </div>
+                    <div id="humo-estado" class="estado-indicador bajo">
+                        <span class="estado-texto">BAJO</span>
+                    </div>
+                    <div class="umbral-info">
+                        <small>Umbral de peligro: <strong>400 ppm</strong></small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles LED -->
+            <div class="controles-panel">
+                <h3>Control de LEDs</h3>
+                <div class="botones-control">
+                    <button class="btn-encender" onclick="encender()">
+                        💡 Encender LED
+                    </button>
+                    <button class="btn-apagar" onclick="apagar()">
+                        🔴 Apagar LED
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gráficos históricos -->
+        <section class="graficos-section">
+            <h2>📈 Histórico de Lecturas</h2>
+            
+            <div class="grafico-container">
+                <h3>Temperatura (Últimos 50 registros)</h3>
+                <canvas id="grafico-temperatura"></canvas>
+            </div>
+            
+            <div class="grafico-container">
+                <h3>Humo (Últimos 50 registros)</h3>
+                <canvas id="grafico-humo"></canvas>
+            </div>
+        </section>
+
+        <!-- Registro de alertas -->
+        <section class="alertas-section">
+            <h2>🚨 Registro de Alertas</h2>
+            <div id="lista-alertas" class="lista-alertas">
+                <p class="sin-alertas">No hay alertas registradas</p>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>Sistema Multisensorial de Alerta Inclusiva para Aulas | Basado en Arduino + MQ-2 + DHT11</p>
+        <p><small>Proyecto de Ingeniería de Software - Universidad de Milagro</small></p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
