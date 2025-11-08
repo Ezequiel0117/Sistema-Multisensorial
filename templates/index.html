@@ -11,6 +11,9 @@
     <!-- Alerta de emergencia -->
     <div id="alerta-emergencia" class="alerta-emergencia oculto">
         <div class="alerta-contenido">
+            <button class="btn-cerrar-alerta" onclick="cerrarAlertaManual()" title="Cerrar alerta">
+                ✕
+            </button>
             <div class="alerta-icono">⚠️</div>
             <h2>¡ALERTA DE EMERGENCIA!</h2>
             <p id="alerta-mensaje">Niveles peligrosos detectados</p>
@@ -18,6 +21,9 @@
                 <span id="alerta-temp"></span>
                 <span id="alerta-humo"></span>
             </div>
+            <button class="btn-alerta-accion" onclick="cerrarAlertaManual()">
+                Entendido
+            </button>
         </div>
     </div>
 
@@ -30,41 +36,6 @@
     </header>
 
     <div class="container">
-        <!-- Leyenda de niveles -->
-        <section class="leyenda-section">
-            <h3>📋 Niveles de Alerta</h3>
-            <div class="leyenda-grid">
-                <div class="leyenda-item bajo">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>BAJO</strong>
-                        <p>Temp: &lt;25°C | Humo: &lt;100 ppm</p>
-                    </div>
-                </div>
-                <div class="leyenda-item normal">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>NORMAL</strong>
-                        <p>Temp: 25-40°C | Humo: 100-200 ppm</p>
-                    </div>
-                </div>
-                <div class="leyenda-item alto">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>ALTO</strong>
-                        <p>Temp: 40-50°C | Humo: 200-300 ppm</p>
-                    </div>
-                </div>
-                <div class="leyenda-item peligro">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>PELIGRO</strong>
-                        <p>Temp: &gt;60°C | Humo: &gt;400 ppm</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- Panel de lecturas en tiempo real -->
         <section class="panel-principal">
             <h2>📊 Lecturas en Tiempo Real</h2>
@@ -141,6 +112,41 @@
             <h2>🚨 Registro de Alertas</h2>
             <div id="lista-alertas" class="lista-alertas">
                 <p class="sin-alertas">No hay alertas registradas</p>
+            </div>
+        </section>
+
+        <!-- Leyenda de niveles -->
+        <section class="leyenda-section">
+            <h3>📋 Niveles de Alerta</h3>
+            <div class="leyenda-grid">
+                <div class="leyenda-item bajo">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>BAJO</strong>
+                        <p>Temp: &lt;25°C | Humo: &lt;100 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item normal">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>NORMAL</strong>
+                        <p>Temp: 25-40°C | Humo: 100-200 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item alto">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>ALTO</strong>
+                        <p>Temp: 40-50°C | Humo: 200-300 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item peligro">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>PELIGRO</strong>
+                        <p>Temp: &gt;60°C | Humo: &gt;400 ppm</p>
+                    </div>
+                </div>
             </div>
         </section>
     </div>

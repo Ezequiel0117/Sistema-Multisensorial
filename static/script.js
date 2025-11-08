@@ -2,6 +2,8 @@
 let graficoTemperatura = null;
 let graficoHumo = null;
 let alertaActiva = false;
+let alertaCerradaManualmente = false;  // Nueva variable para controlar cierre manual
+let ultimoEstadoPeligro = false;       // Para detectar cambios de estado
 
 // Inicializar gráficos al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
@@ -102,11 +104,19 @@ function actualizar() {
             
             // Manejar alerta de emergencia
             if (data.alerta && !alertaActiva) {
-                mostrarAlertaEmergencia(data);
-                alertaActiva = true;
+                // Nueva alerta detectada
+                if (!alertaCerradaManualmente || !ultimoEstadoPeligro) {
+                    // Mostrar solo si no fue cerrada manualmente O si es una nueva alerta
+                    mostrarAlertaEmergencia(data);
+                    alertaActiva = true;
+                    ultimoEstadoPeligro = true;
+                }
             } else if (!data.alerta && alertaActiva) {
+                // Ya no hay peligro, cerrar alerta automáticamente
                 ocultarAlertaEmergencia();
                 alertaActiva = false;
+                alertaCerradaManualmente = false;  // Reset para la próxima alerta
+                ultimoEstadoPeligro = false;
             }
         })
         .catch(error => {
@@ -152,6 +162,14 @@ function mostrarAlertaEmergencia(data) {
 // Ocultar alerta de emergencia
 function ocultarAlertaEmergencia() {
     document.getElementById('alerta-emergencia').classList.add('oculto');
+}
+
+// Cerrar alerta manualmente (nuevo)
+function cerrarAlertaManual() {
+    alertaCerradaManualmente = true;
+    alertaActiva = false;
+    ocultarAlertaEmergencia();
+    mostrarNotificacion('ℹ️ Alerta cerrada. Se volverá a mostrar si persiste el peligro.', 'info');
 }
 
 // Reproducir sonido de alerta (opcional)
@@ -277,17 +295,35 @@ function mostrarNotificacion(mensaje, tipo) {
     const notif = document.createElement('div');
     notif.className = `notificacion ${tipo}`;
     notif.textContent = mensaje;
+    
+    let bgColor;
+    switch(tipo) {
+        case 'success':
+            bgColor = '#28a745';
+            break;
+        case 'error':
+            bgColor = '#dc3545';
+            break;
+        case 'info':
+            bgColor = '#17a2b8';
+            break;
+        default:
+            bgColor = '#6c757d';
+    }
+    
     notif.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
         padding: 1rem 2rem;
-        background: ${tipo === 'success' ? '#28a745' : '#dc3545'};
+        background: ${bgColor};
         color: white;
         border-radius: 10px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         z-index: 10000;
         animation: slideInRight 0.3s ease;
+        max-width: 400px;
+        word-wrap: break-word;
     `;
     
     document.body.appendChild(notif);
