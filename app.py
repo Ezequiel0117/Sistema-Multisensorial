@@ -46,14 +46,22 @@ except Exception as e:
             # Variación aleatoria para simular cambios
             temp = self.base_temp + random.uniform(-3, 8)
             humo = self.base_humo + random.uniform(-20, 40)
+            humedad = 60 + random.uniform(-10, 10)
             
             # Ocasionalmente simular picos (1% de probabilidad)
             if random.random() < 0.01:
                 temp += random.uniform(20, 40)
                 humo += random.uniform(200, 300)
             
-            # Formato: "T:25.5,H:123.4"
-            data = f"T:{temp:.1f},H:{humo:.1f}"
+            # Formato compatible con ambas versiones del Arduino
+            # Puedes cambiar entre estos dos formatos según prefieras:
+            
+            # Formato simplificado (recomendado para Flask):
+            data = f"T:{temp:.1f},H:{humo:.1f},RH:{humedad:.1f}"
+            
+            # Formato del monitor serial (tu código actual):
+            # data = f"Temp: {temp:.1f} °C | Humo: {humo:.0f} | Humedad: {humedad:.1f} %"
+            
             return data.encode('utf-8')
         
         def write(self, data):
@@ -83,13 +91,36 @@ def calcular_nivel(valor, tipo):
             return 'peligro'
 
 def parsear_datos(data_str):
-    """Parsea los datos del Arduino: 'T:25.5,H:123.4'"""
+    """
+    Parsea los datos del Arduino en múltiples formatos:
+    - Formato 1: 'T:25.5,H:123.4' (simplificado)
+    - Formato 2: 'Temp: 25.5 °C | Humo: 123 | Humedad: 45.2 %' (tu formato actual)
+    """
     try:
-        partes = data_str.split(',')
-        temp = float(partes[0].split(':')[1])
-        humo = float(partes[1].split(':')[1])
-        return temp, humo
-    except:
+        # Intentar formato simplificado primero (T:25.5,H:123.4)
+        if 'T:' in data_str and 'H:' in data_str and ',' in data_str:
+            partes = data_str.split(',')
+            temp = float(partes[0].split(':')[1])
+            humo = float(partes[1].split(':')[1])
+            return temp, humo
+        
+        # Intentar formato del monitor serial (Temp: 25.5 °C | Humo: 123 | Humedad: 45.2 %)
+        elif 'Temp:' in data_str and 'Humo:' in data_str:
+            # Extraer temperatura
+            temp_start = data_str.find('Temp:') + 5
+            temp_end = data_str.find('°C')
+            temp = float(data_str[temp_start:temp_end].strip())
+            
+            # Extraer humo (valor analógico 0-1023)
+            humo_start = data_str.find('Humo:') + 5
+            humo_end = data_str.find('|', humo_start)
+            humo = float(data_str[humo_start:humo_end].strip())
+            
+            return temp, humo
+        else:
+            return None, None
+    except Exception as e:
+        print(f"Error al parsear datos: {e}, Data: {data_str}")
         return None, None
 
 @app.route('/')
