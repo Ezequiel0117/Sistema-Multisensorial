@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - Sistema de Alerta</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .perfil-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .perfil-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .perfil-header h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .perfil-header a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .perfil-header a:hover {
+            opacity: 1;
+        }
+
+        .perfil-content {
+            padding: 2rem;
+        }
+
+        .perfil-info {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .perfil-info h3 {
+            color: #1e3c72;
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid #2a5298;
+            padding-bottom: 0.5rem;
+        }
+
+        .perfil-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .perfil-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .perfil-info-item strong {
+            color: #333;
+        }
+
+        .perfil-info-item span {
+            color: #666;
+        }
+
+        .toggle-notif {
+            background: linear-gradient(135deg, #e8f4f8 0%, #d4e7f1 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .toggle-notif h3 {
+            color: #1e3c72;
+            margin-bottom: 1rem;
+        }
+
+        .btn-toggle {
+            padding: 1rem 2rem;
+            border-radius: 30px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-toggle.activo {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .btn-toggle.inactivo {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .btn-toggle:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.3);
+        }
+
+        .btn-toggle:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .historial-notif {
+            margin-top: 2rem;
+        }
+
+        .historial-notif h3 {
+            color: #1e3c72;
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid #2a5298;
+            padding-bottom: 0.5rem;
+        }
+
+        .notif-item {
+            background: #fff3cd;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-left: 5px solid #ffc107;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .notif-item:hover {
+            transform: translateX(5px);
+        }
+
+        .notif-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .notif-tipo {
+            font-weight: 700;
+            color: #dc3545;
+            font-size: 1.1rem;
+        }
+
+        .notif-fecha {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .notif-valores {
+            display: flex;
+            gap: 1rem;
+            margin: 0.5rem 0;
+            color: #333;
+        }
+
+        .notif-mensaje {
+            margin-top: 0.5rem;
+            color: #666;
+            font-size: 0.95rem;
+            padding: 0.5rem;
+            background: rgba(255,255,255,0.5);
+            border-radius: 5px;
+        }
+
+        .notif-estado {
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        .notif-estado.enviado {
+            color: #28a745;
+        }
+
+        .notif-estado.no-enviado {
+            color: #dc3545;
+        }
+
+        .sin-notificaciones {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .perfil-container {
+                margin: 1rem auto;
+            }
+
+            .perfil-content {
+                padding: 1rem;
+            }
+
+            .perfil-info-item {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .notif-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .notif-valores {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="perfil-container">
+        <div class="perfil-header">
+            <h1>👤 Mi Perfil</h1>
+            <p>Gestiona tu cuenta y notificaciones</p>
+            <a href="/">← Volver al Dashboard</a>
+        </div>
+
+        <div class="perfil-content">
+            <div class="perfil-info">
+                <h3>📋 Información Personal</h3>
+                <div class="perfil-info-item">
+                    <strong>Nombre:</strong>
+                    <span>{{ usuario[0] }}</span>
+                </div>
+                <div class="perfil-info-item">
+                    <strong>Email:</strong>
+                    <span>{{ usuario[1] }}</span>
+                </div>
+                <div class="perfil-info-item">
+                    <strong>Notificaciones:</strong>
+                    <span>
+                        {% if usuario[2] %}
+                        ✅ Activas
+                        {% else %}
+                        ❌ Desactivadas
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="perfil-info-item">
+                    <strong>Fecha de Registro:</strong>
+                    <span>{{ usuario[3] }}</span>
+                </div>
+            </div>
+
+            <div class="toggle-notif">
+                <h3>📧 Notificaciones por Email</h3>
+                <p style="margin-bottom: 1rem; color: #666;">
+                    {% if usuario[2] %}
+                    Recibirás alertas en tu correo cuando se detecte peligro
+                    {% else %}
+                    No recibirás alertas por correo (pero verás alertas en el dashboard)
+                    {% endif %}
+                </p>
+                <button 
+                    id="btn-toggle-notif" 
+                    class="btn-toggle {% if usuario[2] %}activo{% else %}inactivo{% endif %}"
+                    onclick="toggleNotificaciones()">
+                    {% if usuario[2] %}
+                    🔔 Desactivar Notificaciones
+                    {% else %}
+                    🔕 Activar Notificaciones
+                    {% endif %}
+                </button>
+            </div>
+
+            <div class="historial-notif">
+                <h3>📨 Historial de Notificaciones (Últimas 20)</h3>
+                {% if notificaciones %}
+                    {% for notif in notificaciones %}
+                    <div class="notif-item">
+                        <div class="notif-header">
+                            <span class="notif-tipo">
+                                {% if 'temperatura' in notif[0] and 'humo' in notif[0] %}
+                                ⚠️ Alerta Crítica (Temperatura + Humo)
+                                {% elif 'temperatura' in notif[0] %}
+                                🔥 Alerta de Temperatura
+                                {% else %}
+                                💨 Alerta de Humo
+                                {% endif %}
+                            </span>
+                            <span class="notif-fecha">{{ notif[5] }}</span>
+                        </div>
+                        
+                        <div class="notif-valores">
+                            <span>🌡️ Temperatura: <strong>{{ notif[1] }}°C</strong></span>
+                            <span>💨 Humo: <strong>{{ notif[2] }} ppm</strong></span>
+                        </div>
+                        
+                        <div class="notif-mensaje">
+                            {{ notif[3] }}
+                        </div>
+                        
+                        <div class="notif-estado {% if notif[4] %}enviado{% else %}no-enviado{% endif %}">
+                            {% if notif[4] %}
+                            ✅ Email enviado correctamente
+                            {% else %}
+                            ❌ Error al enviar email
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="sin-notificaciones">
+                        <p>📭 No has recibido notificaciones aún</p>
+                        <p style="margin-top: 1rem; font-size: 0.9rem;">
+                            Cuando se detecte una situación de peligro, recibirás un email aquí.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function toggleNotificaciones() {
+            const btn = document.getElementById('btn-toggle-notif');
+            const textoOriginal = btn.textContent;
+            
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+
+            try {
+                const response = await fetch('/toggle_notificaciones', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    alert('✅ ' + data.mensaje);
+                    // Recargar página para actualizar estado
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.mensaje);
+                    btn.textContent = textoOriginal;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión. Intenta de nuevo.');
+                btn.textContent = textoOriginal;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

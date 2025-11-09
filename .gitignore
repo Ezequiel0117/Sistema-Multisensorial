@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 # Configuración local
 .env
+alertas.db
