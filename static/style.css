@@ -30,12 +30,58 @@ header {
     color: white;
     padding: 2rem;
     box-shadow: var(--sombra-elevada);
-    text-align: center;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.header-usuario {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.usuario-nombre {
+    background: rgba(255,255,255,0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.btn-perfil, .btn-logout {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-perfil {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.btn-perfil:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.btn-logout {
+    background: rgba(220, 53, 69, 0.8);
+    color: white;
+}
+
+.btn-logout:hover {
+    background: rgba(220, 53, 69, 1);
 }
 
 header h1 {
     font-size: 2.2rem;
-    margin-bottom: 0.5rem;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
@@ -191,15 +237,45 @@ section h2 {
 /* Controles Panel */
 .controles-panel {
     background: linear-gradient(135deg, #e8f4f8 0%, #d4e7f1 100%);
-    padding: 1.5rem;
+    padding: 2rem;
     border-radius: 15px;
     margin-top: 2rem;
 }
 
 .controles-panel h3 {
     color: var(--color-primario);
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     text-align: center;
+    font-size: 1.5rem;
+}
+
+.control-grupo {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.control-grupo:last-child {
+    margin-bottom: 0;
+}
+
+.control-grupo h4 {
+    color: var(--color-primario);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-descripcion {
+    text-align: center;
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    font-style: italic;
 }
 
 .botones-control {
@@ -209,7 +285,10 @@ section h2 {
     flex-wrap: wrap;
 }
 
-button {
+.btn-control {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
     padding: 1rem 2rem;
     border: none;
     border-radius: 30px;
@@ -217,12 +296,16 @@ button {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: var(--sombra);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     position: relative;
     overflow: hidden;
 }
 
-button::before {
+.btn-control .btn-icono {
+    font-size: 1.5rem;
+}
+
+.btn-control::before {
     content: '';
     position: absolute;
     top: 50%;
@@ -235,24 +318,101 @@ button::before {
     transition: width 0.5s, height 0.5s;
 }
 
-button:hover::before {
+.btn-control:hover::before {
     width: 300px;
     height: 300px;
 }
 
-button:hover {
+.btn-control:hover {
     transform: translateY(-3px);
-    box-shadow: var(--sombra-elevada);
+    box-shadow: 0 6px 25px rgba(0,0,0,0.3);
 }
 
+.btn-control:active {
+    transform: translateY(-1px);
+}
+
+/* Botones LED */
 .btn-encender {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
 }
 
+.btn-encender:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+}
+
 .btn-apagar {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+}
+
+.btn-apagar:hover {
+    background: linear-gradient(135deg, #5a6268 0%, #3d4349 100%);
+}
+
+/* Botones Ventilador */
+.btn-ventilador-on {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+.btn-ventilador-on:hover {
+    background: linear-gradient(135deg, #138496 0%, #0f6674 100%);
+}
+
+.btn-ventilador-on .btn-icono {
+    animation: girar 2s linear infinite;
+}
+
+@keyframes girar {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-ventilador-off {
     background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
+}
+
+.btn-ventilador-off:hover {
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+}
+
+/* Botones Servomotor */
+.btn-servo-abrir {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.btn-servo-abrir:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+}
+
+.btn-servo-abrir .btn-icono {
+    animation: pulso-abrir 1.5s ease-in-out infinite;
+}
+
+@keyframes pulso-abrir {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+.btn-servo-cerrar {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+}
+
+.btn-servo-cerrar:hover {
+    background: linear-gradient(135deg, #5a6268 0%, #3d4349 100%);
 }
 
 /* Gráficos */
@@ -534,8 +694,23 @@ footer p {
 
 /* Responsive */
 @media (max-width: 768px) {
+    .header-top {
+        flex-direction: column;
+        text-align: center;
+    }
+
     header h1 {
         font-size: 1.5rem;
+    }
+
+    .header-usuario {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .usuario-badge {
+        width: 100%;
+        text-align: center;
     }
     
     .estado-conexion {
@@ -558,12 +733,16 @@ footer p {
     .valor-grande {
         font-size: 2.5rem;
     }
+
+    .control-grupo {
+        padding: 1rem;
+    }
     
     .botones-control {
         flex-direction: column;
     }
     
-    button {
+    .btn-control {
         width: 100%;
     }
     
@@ -582,5 +761,43 @@ footer p {
     
     .alerta-contenido h2 {
         font-size: 1.8rem;
+    }
+}
+
+/* Botón de Emergencia */
+.btn-emergencia {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 50%, #bd2130 100%);
+    color: white;
+    animation: parpadeoEmergencia 2s infinite;
+    border: 3px solid #fff;
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.7);
+}
+
+.btn-emergencia:hover {
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 50%, #a71e2a 100%);
+    animation: parpadeoEmergenciaRapido 0.5s infinite;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 0 30px rgba(220, 53, 69, 0.9);
+}
+
+.btn-emergencia:active {
+    transform: translateY(-1px) scale(1.01);
+}
+
+@keyframes parpadeoEmergencia {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(220, 53, 69, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(220, 53, 69, 1);
+    }
+}
+
+@keyframes parpadeoEmergenciaRapido {
+    0%, 100% {
+        box-shadow: 0 0 25px rgba(220, 53, 69, 0.8);
+    }
+    50% {
+        box-shadow: 0 0 45px rgba(220, 53, 69, 1);
     }
 }

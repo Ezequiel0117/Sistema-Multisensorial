@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Alerta Inclusiva - Dashboard</title>
-        <div class="link-perfil">
-        <a href="/perfil">perfil</a>
-        </div>
-
-        <a href="{{ url_for('logout') }}">Cerrar sesión</a>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -33,7 +28,22 @@
     </div>
 
     <header>
-        <h1>🔔 Sistema Multisensorial de Alerta Inclusiva</h1>
+        <div class="header-top">
+            <h1>🔔 Sistema Multisensorial de Alerta Inclusiva</h1>
+            {% if usuario %}
+            <div class="header-usuario">
+                <span class="usuario-badge">👤 {{ usuario }}</span>
+                <a href="/perfil" class="btn-header btn-perfil">
+                    <span class="btn-icono">⚙️</span>
+                    <span class="btn-texto">Perfil</span>
+                </a>
+                <a href="/logout" class="btn-header btn-logout">
+                    <span class="btn-icono">🚪</span>
+                    <span class="btn-texto">Salir</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
         <div class="estado-conexion">
             <span id="estado-conexion" class="conectado">● Conectado</span>
             <span id="ultima-actualizacion">Última actualización: --:--:--</span>
@@ -83,20 +93,63 @@
                 </div>
             </div>
 
-            <!-- Controles LED -->
+            <!-- Panel de Controles -->
             <div class="controles-panel">
-                <h3>Control de LEDs</h3>
-                <div class="botones-control">
-                    <button class="btn-encender" onclick="encender()">
-                        💡 Encender LED
-                    </button>
-                    <button class="btn-apagar" onclick="apagar()">
-                        🔴 Apagar LED
-                    </button>
+                <h3>🎛️ Panel de Control</h3>
+                
+                <!-- Botón de Emergencia Manual -->
+                <div class="control-grupo">
+                    <h4>🚨 BOTÓN DE EMERGENCIA MANUAL</h4>
+                    <div class="botones-control">
+                        <button class="btn-control btn-emergencia" onclick="activarEmergenciaManual()">
+                            <span class="btn-icono">🚨</span>
+                            <span class="btn-texto">ACTIVAR EMERGENCIA</span>
+                        </button>
+                    </div>
+                    <p class="control-descripcion">
+                        Al activar: Se encenderá el ventilador de evacuación y se abrirán las puertas automáticamente
+                    </p>
+                </div>
+
+                <!-- Control de Ventilador -->
+                <div class="control-grupo">
+                    <h4>🌀 Ventilador de Evacuación</h4>
+                    <div class="botones-control">
+                        <button class="btn-control btn-ventilador-on" onclick="encenderVentilador()">
+                            <span class="btn-icono">🌀</span>
+                            <span class="btn-texto">Encender Ventilador</span>
+                        </button>
+                        <button class="btn-control btn-ventilador-off" onclick="apagarVentilador()">
+                            <span class="btn-icono">⏹️</span>
+                            <span class="btn-texto">Apagar Ventilador</span>
+                        </button>
+                    </div>
+                    <p class="control-descripcion">
+                        El ventilador ayuda a evacuar humo y gases en caso de emergencia
+                    </p>
+                </div>
+
+                <!-- Control de Servomotores -->
+                <div class="control-grupo">
+                    <h4>🚪 Puertas de Evacuación (Servomotores)</h4>
+                    <div class="botones-control">
+                        <button class="btn-control btn-servo-abrir" onclick="abrirPuertas()">
+                            <span class="btn-icono">🔓</span>
+                            <span class="btn-texto">Abrir Puertas</span>
+                        </button>
+                        <button class="btn-control btn-servo-cerrar" onclick="cerrarPuertas()">
+                            <span class="btn-icono">🔒</span>
+                            <span class="btn-texto">Cerrar Puertas</span>
+                        </button>
+                    </div>
+                    <p class="control-descripcion">
+                        Control automático de puertas/ventanas para facilitar la evacuación
+                    </p>
                 </div>
             </div>
         </section>
 
+        <!-- Resto del código se mantiene igual -->
         <!-- Gráficos históricos -->
         <section class="graficos-section">
             <h2>📈 Histórico de Lecturas</h2>

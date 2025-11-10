@@ -4,6 +4,8 @@ let graficoHumo = null;
 let alertaActiva = false;
 let alertaCerradaManualmente = false;  // Nueva variable para controlar cierre manual
 let ultimoEstadoPeligro = false;       // Para detectar cambios de estado
+let tiempoUltimoCierre = 0;            // Timestamp del último cierre manual
+const TIEMPO_REABRIR = 30000;          // 30 segundos antes de poder reabrir
 
 // Inicializar gráficos al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
@@ -103,19 +105,30 @@ function actualizar() {
             document.getElementById('estado-conexion').className = 'conectado';
             
             // Manejar alerta de emergencia
-            if (data.alerta && !alertaActiva) {
-                // Nueva alerta detectada
-                if (!alertaCerradaManualmente || !ultimoEstadoPeligro) {
-                    // Mostrar solo si no fue cerrada manualmente O si es una nueva alerta
-                    mostrarAlertaEmergencia(data);
-                    alertaActiva = true;
-                    ultimoEstadoPeligro = true;
+            const tiempoActual = Date.now();
+            const tiempoDesdeUltimoCierre = tiempoActual - tiempoUltimoCierre;
+            
+            if (data.alerta) {
+                // HAY PELIGRO
+                if (!alertaActiva) {
+                    // La alerta no está visible actualmente
+                    if (!alertaCerradaManualmente || tiempoDesdeUltimoCierre > TIEMPO_REABRIR) {
+                        // Mostrar si: no fue cerrada manualmente O ya pasó el tiempo de espera
+                        mostrarAlertaEmergencia(data);
+                        alertaActiva = true;
+                        alertaCerradaManualmente = false; // Reset
+                    }
                 }
-            } else if (!data.alerta && alertaActiva) {
-                // Ya no hay peligro, cerrar alerta automáticamente
-                ocultarAlertaEmergencia();
-                alertaActiva = false;
-                alertaCerradaManualmente = false;  // Reset para la próxima alerta
+                ultimoEstadoPeligro = true;
+            } else {
+                // NO HAY PELIGRO
+                if (alertaActiva) {
+                    // Cerrar alerta automáticamente
+                    ocultarAlertaEmergencia();
+                    alertaActiva = false;
+                }
+                // Reset completo cuando no hay peligro
+                alertaCerradaManualmente = false;
                 ultimoEstadoPeligro = false;
             }
         })
@@ -164,12 +177,18 @@ function ocultarAlertaEmergencia() {
     document.getElementById('alerta-emergencia').classList.add('oculto');
 }
 
-// Cerrar alerta manualmente (nuevo)
+// Cerrar alerta manualmente
 function cerrarAlertaManual() {
     alertaCerradaManualmente = true;
     alertaActiva = false;
+    tiempoUltimoCierre = Date.now();
     ocultarAlertaEmergencia();
-    mostrarNotificacion('ℹ️ Alerta cerrada. Se volverá a mostrar si persiste el peligro.', 'info');
+    
+    const segundosEspera = TIEMPO_REABRIR / 1000;
+    mostrarNotificacion(
+        `ℹ️ Alerta cerrada. Se volverá a mostrar en ${segundosEspera}s si persiste el peligro.`,
+        'info'
+    );
 }
 
 // Reproducir sonido de alerta (opcional)
@@ -263,30 +282,95 @@ function actualizarAlertas() {
         });
 }
 
-// Funciones de control LED
-function encender() {
-    fetch('/led/on', {method: 'POST'})
+// BOTÓN DE EMERGENCIA MANUAL
+function activarEmergenciaManual() {
+    // Confirmar acción
+    if (!confirm('¿Está seguro de que desea activar el modo de emergencia? Esto encenderá el ventilador y abrirá las puertas.')) {
+        return;
+    }
+    
+    // Mostrar notificación de activación
+    mostrarNotificacion('🚨 Activando modo de emergencia...', 'info');
+    
+    // Activar ventilador
+    fetch('/ventilador/on', {method: 'POST'})
         .then(res => res.json())
         .then(data => {
-            console.log('LED encendido:', data);
-            mostrarNotificacion('✅ LED encendido correctamente', 'success');
+            console.log('Ventilador encendido:', data);
+            
+            // Abrir puertas después de un breve retraso
+            setTimeout(() => {
+                fetch('/servomotor/abrir', {method: 'POST'})
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log('Puertas abiertas:', data);
+                        
+                        // Mostrar notificación de éxito completa
+                        mostrarNotificacion('🚨 MODO DE EMERGENCIA ACTIVADO: Ventilador encendido y puertas abiertas', 'success');
+                    })
+                    .catch(error => {
+                        console.error('Error al abrir puertas:', error);
+                        mostrarNotificacion('❌ Error al abrir puertas en emergencia', 'error');
+                    });
+            }, 500);
         })
         .catch(error => {
-            console.error('Error al encender LED:', error);
-            mostrarNotificacion('❌ Error al encender LED', 'error');
+            console.error('Error al encender ventilador:', error);
+            mostrarNotificacion('❌ Error al encender ventilador en emergencia', 'error');
         });
 }
 
-function apagar() {
-    fetch('/led/off', {method: 'POST'})
+// Funciones de control del Ventilador
+function encenderVentilador() {
+    fetch('/ventilador/on', {method: 'POST'})
         .then(res => res.json())
         .then(data => {
-            console.log('LED apagado:', data);
-            mostrarNotificacion('✅ LED apagado correctamente', 'success');
+            console.log('Ventilador encendido:', data);
+            mostrarNotificacion('🌀 Ventilador encendido - Evacuando humo', 'success');
         })
         .catch(error => {
-            console.error('Error al apagar LED:', error);
-            mostrarNotificacion('❌ Error al apagar LED', 'error');
+            console.error('Error al encender ventilador:', error);
+            mostrarNotificacion('❌ Error al encender ventilador', 'error');
+        });
+}
+
+function apagarVentilador() {
+    fetch('/ventilador/off', {method: 'POST'})
+        .then(res => res.json())
+        .then(data => {
+            console.log('Ventilador apagado:', data);
+            mostrarNotificacion('⏹️ Ventilador apagado', 'success');
+        })
+        .catch(error => {
+            console.error('Error al apagar ventilador:', error);
+            mostrarNotificacion('❌ Error al apagar ventilador', 'error');
+        });
+}
+
+// Funciones de control de Servomotores
+function abrirPuertas() {
+    fetch('/servomotor/abrir', {method: 'POST'})
+        .then(res => res.json())
+        .then(data => {
+            console.log('Puertas abiertas:', data);
+            mostrarNotificacion('🔓 Puertas de evacuación ABIERTAS', 'success');
+        })
+        .catch(error => {
+            console.error('Error al abrir puertas:', error);
+            mostrarNotificacion('❌ Error al abrir puertas', 'error');
+        });
+}
+
+function cerrarPuertas() {
+    fetch('/servomotor/cerrar', {method: 'POST'})
+        .then(res => res.json())
+        .then(data => {
+            console.log('Puertas cerradas:', data);
+            mostrarNotificacion('🔒 Puertas de evacuación CERRADAS', 'success');
+        })
+        .catch(error => {
+            console.error('Error al cerrar puertas:', error);
+            mostrarNotificacion('❌ Error al cerrar puertas', 'error');
         });
 }
 

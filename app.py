@@ -407,6 +407,36 @@ def led(accion):
         return jsonify({'success': True, 'estado': accion})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+    
+@app.route('/ventilador/<accion>', methods=['POST'])
+def ventilador(accion):
+    """Controla el ventilador de evacuación"""
+    try:
+        if accion == 'on':
+            arduino.write(b'V')  # V mayúscula para encender ventilador
+            print("✅ Ventilador encendido")
+        elif accion == 'off':
+            arduino.write(b'v')  # v minúscula para apagar ventilador
+            print("✅ Ventilador apagado")
+        return jsonify({'success': True, 'estado': accion})
+    except Exception as e:
+        print(f"❌ Error al controlar ventilador: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/servomotor/<accion>', methods=['POST'])
+def servomotor(accion):
+    """Controla los servomotores de puertas/ventanas"""
+    try:
+        if accion == 'abrir':
+            arduino.write(b'A')  # A para Abrir (90°)
+            print("✅ Servomotores: Puertas ABIERTAS")
+        elif accion == 'cerrar':
+            arduino.write(b'C')  # C para Cerrar (0°)
+            print("✅ Servomotores: Puertas CERRADAS")
+        return jsonify({'success': True, 'estado': accion})
+    except Exception as e:
+        print(f"❌ Error al controlar servomotor: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/configuracion', methods=['GET', 'POST'])
 def configuracion():
