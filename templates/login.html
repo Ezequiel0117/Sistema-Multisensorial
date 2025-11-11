@@ -21,13 +21,15 @@
             padding: 20px;
         }
 
-        .container-login {
+        /* Contenedor principal que se divide */
+        .split-container {
+            display: flex;
             background: white;
-            padding: 3rem;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 400px;
+            max-width: 900px;
             width: 100%;
+            overflow: hidden; /* Para que la imagen respete los bordes redondeados */
             animation: slideIn 0.5s ease;
         }
 
@@ -40,6 +42,65 @@
                 opacity: 1;
                 transform: translateY(0);
             }
+        }
+
+        /* --- Columna Izquierda (Imagen) --- */
+        .split-left {
+            flex-basis: 45%;
+            background-image: url("{{ url_for('static', filename='fondo_m.jpg') }}");
+            background-position: center;
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            position: relative;
+        }
+        
+        /* Capa oscura para legibilidad */
+        .split-left::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 30, 70, 0.6);
+            z-index: 1;
+        }
+
+        .split-left .image-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .split-left h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .split-left p {
+            font-size: 1.1rem;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+        }
+
+        /* --- Columna Derecha (Formulario) --- */
+        .split-right {
+            flex-basis: 55%;
+            padding: 3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* El contenedor del formulario (antes .container-login) */
+        .form-container {
+            width: 100%;
+            max-width: 350px;
         }
 
         .logo {
@@ -113,11 +174,11 @@
             border-radius: 10px;
             margin-bottom: 1rem;
             display: none;
+            animation: fadeIn 0.3s ease;
         }
 
         .alert.show {
             display: block;
-            animation: fadeIn 0.3s ease;
         }
 
         .alert-error {
@@ -148,14 +209,8 @@
             height: 1px;
             background: #e0e0e0;
         }
-
-        .divider::before {
-            left: 0;
-        }
-
-        .divider::after {
-            right: 0;
-        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
 
         .link-registro {
             text-align: center;
@@ -168,7 +223,6 @@
             text-decoration: none;
             font-weight: 600;
         }
-
         .link-registro a:hover {
             text-decoration: underline;
         }
@@ -178,42 +232,70 @@
             to { opacity: 1; }
         }
 
-        @media (max-width: 480px) {
-            .container-login {
-                padding: 2rem 1.5rem;
+        /* Responsive: Pantallas más pequeñas que 900px */
+        @media (max-width: 900px) {
+            .split-container {
+                flex-direction: column;
+                max-width: 450px;
+            }
+            /* Ocultamos la imagen en móviles para dar espacio al form */
+            .split-left {
+                display: none;
+            }
+            .split-right {
+                flex-basis: 100%;
+                padding: 2.5rem;
+            }
+            .form-container {
+                max-width: 100%;
             }
         }
+        
     </style>
 </head>
 <body>
-    <div class="container-login">
-        <div class="logo">
-            <h1>🔔 Sistema de Alerta</h1>
-            <p>Inicia sesión para continuar</p>
+    
+    <div class="split-container">
+        
+        <div class="split-left">
+            <div class="image-content">
+                <h2>🔔 Sistema de Alerta</h2>
+                <p>Tu seguridad es nuestra prioridad. Inicia sesión para monitorear.</p>
+            </div>
         </div>
 
-        <div id="alerta-mensaje" class="alert"></div>
-
-        <form id="form-login">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="tu@email.com">
+        <div class="split-right">
+            
+            <div class="form-container"> <div class="logo">
+                    <h1>Iniciar Sesión</h1>
+                    <p>Bienvenido de nuevo</p>
+                </div>
+        
+                <div id="alerta-mensaje" class="alert"></div>
+        
+                <form id="form-login">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="tu@email.com">
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" name="password" required placeholder="••••••••">
+                    </div>
+        
+                    <button type="submit" class="btn-primary" id="btn-login">
+                        Iniciar Sesión
+                    </button>
+                </form>
+        
+                <div class="divider">o</div>
+        
+                <div class="link-registro">
+                    ¿No tienes cuenta? <a href="/registro">Regístrate aquí</a>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required placeholder="••••••••">
-            </div>
-
-            <button type="submit" class="btn-primary" id="btn-login">
-                Iniciar Sesión
-            </button>
-        </form>
-
-        <div class="divider">o</div>
-
-        <div class="link-registro">
-            ¿No tienes cuenta? <a href="/registro">Regístrate aquí</a>
         </div>
     </div>
 

@@ -15,6 +15,10 @@ from email.mime.multipart import MIMEMultipart
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
+# ============================================
+# CONFIGURACIÓN DE EMAIL (GMAIL GRATIS)
+# ============================================
+# ⚠️ RECUERDA REEMPLAZAR CON TUS CREDENCIALES
 EMAIL_ENABLED = True
 GMAIL_USER = "tucorreo@gmail.com"
 GMAIL_APP_PASSWORD = "tucontraseña"
@@ -30,16 +34,13 @@ def enviar_email(destinatario, asunto, cuerpo):
         msg['From'] = GMAIL_USER
         msg['To'] = destinatario
         msg['Subject'] = asunto
-
         msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
-
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
         text = msg.as_string()
         server.sendmail(GMAIL_USER, destinatario, text)
         server.quit()
-
         print(f"Email enviado a {destinatario}")
         return True
     except Exception as e:
@@ -51,10 +52,7 @@ historico_temperatura = deque(maxlen=50)
 historico_humo = deque(maxlen=50)
 historico_alertas = deque(maxlen=20)
 
-# Control de spam: 1 notificación por minuto
-notificaciones_enviadas = set()
-
-# NUEVA VARIABLE: Estado previo de peligro
+# Estado maestro de peligro (para "enganchar" la alerta)
 estado_peligro_anterior = False
 
 # Última lectura
@@ -66,11 +64,12 @@ ultima_lectura = {
 
 lectura_lock = threading.Lock()
 
-# Umbrales actualizados
-UMBRAL_TEMPERATURA_PELIGRO = 45  # ✅ Alerta a partir de 45°C
-UMBRAL_HUMO_PELIGRO = 600  # ✅ Alerta a partir de 600 ppm
+# 🔑 UMBRALES (Basados en tu app.py y leyenda originales)
+UMBRAL_TEMPERATURA_PELIGRO = 45 
+UMBRAL_HUMO_PELIGRO = 600 
 UMBRAL_TEMP_BAJO, UMBRAL_TEMP_NORMAL, UMBRAL_TEMP_ALTO = 20, 30, 40
 UMBRAL_HUMO_BAJO, UMBRAL_HUMO_NORMAL, UMBRAL_HUMO_ALTO = 100, 300, 500
+
 
 # Arduino (real o dummy)
 try:
@@ -84,15 +83,22 @@ except Exception as e:
     class DummyArduino:
         def __init__(self):
             self.counter = 0
+            # Valores base normales
             self.base_temp = 25
             self.base_humo = 50
         def readline(self):
             self.counter += 1
             temp = self.base_temp + random.uniform(-3, 8)
             humo = self.base_humo + random.uniform(-20, 40)
-            if random.random() < 0.01:
-                temp += random.uniform(20, 40)
-                humo += random.uniform(200, 300)
+            
+            # 1% de probabilidad de generar un pico de peligro
+            if random.random() < 0.01: 
+                print("***********************************")
+                print("Dummy: Simulando pico de peligro...")
+                print("***********************************")
+                temp += random.uniform(30, 40) # Supera 45
+                humo += random.uniform(550, 650) # Supera 600
+                
             return f"T:{temp:.1f},H:{humo:.1f},RH:60.0".encode('utf-8')
         def write(self, data): 
             print(f"Dummy.write: {data}")
@@ -102,33 +108,32 @@ except Exception as e:
     usar_dummy = True
 
 # ============================================
-# BASE DE DATOS
+# BASE DE DATOS (Incluye la columna 'rol' para Admin)
 # ============================================
 def inicializar_db():
     conn = sqlite3.connect('alertas.db')
     c = conn.cursor()
     
-    # Agregar columna 'rol' a la tabla usuarios
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  nombre TEXT NOT NULL,
-                  email TEXT UNIQUE NOT NULL,
-                  telefono TEXT,
-                  password_hash TEXT NOT NULL,
-                  rol TEXT DEFAULT 'usuario',
-                  notificaciones_activas INTEGER DEFAULT 1,
-                  fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+              (id INTEGER PRIMARY KEY AUTOINCREMENT,
+               nombre TEXT NOT NULL,
+               email TEXT UNIQUE NOT NULL,
+               telefono TEXT,
+               password_hash TEXT NOT NULL,
+               rol TEXT DEFAULT 'usuario', 
+               notificaciones_activas INTEGER DEFAULT 1,
+               fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS notificaciones
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  usuario_id INTEGER,
-                  tipo TEXT NOT NULL,
-                  temperatura REAL,
-                  humo REAL,
-                  mensaje TEXT,
-                  enviado INTEGER DEFAULT 0,
-                  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (usuario_id) REFERENCES usuarios(id))''')
+              (id INTEGER PRIMARY KEY AUTOINCREMENT,
+               usuario_id INTEGER,
+               tipo TEXT NOT NULL,
+               temperatura REAL,
+               humo REAL,
+               mensaje TEXT,
+               enviado INTEGER DEFAULT 0,
+               fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+               FOREIGN KEY (usuario_id) REFERENCES usuarios(id))''')
     
     conn.commit()
     
@@ -136,7 +141,7 @@ def inicializar_db():
     c.execute("SELECT * FROM usuarios WHERE email = 'admin@sistema.com'")
     if not c.fetchone():
         c.execute('''INSERT INTO usuarios (nombre, email, telefono, password_hash, rol)
-                     VALUES (?, ?, ?, ?, ?)''',
+                    VALUES (?, ?, ?, ?, ?)''',
                   ('Administrador', 'admin@sistema.com', '', 
                    hash_password('admin123'), 'admin'))
         conn.commit()
@@ -164,13 +169,12 @@ def registrar_usuario(nombre, email, telefono, password):
         return False, str(e)
 
 def verificar_usuario(email, password):
-    """Verifica las credenciales del usuario"""
+    """Verifica las credenciales del usuario (incluyendo ROL)"""
     try:
         conn = sqlite3.connect('alertas.db')
         c = conn.cursor()
         
         password_hash = hash_password(password)
-        # Ahora incluimos el rol
         c.execute('''SELECT id, nombre, telefono, notificaciones_activas, rol 
                      FROM usuarios WHERE email = ? AND password_hash = ?''',
                   (email, password_hash))
@@ -214,28 +218,31 @@ def registrar_notificacion_db(uid, tipo, temp, humo, msg, enviado):
         print(f"Error DB notif: {e}")
 
 # ============================================
-# NOTIFICACIÓN POR EMAIL
+# NOTIFICACIÓN POR EMAIL (SIN SPAM)
 # ============================================
 def notificar_usuarios_alerta(temp, humo, tipo_alerta):
-    """Notifica a usuarios solo cuando es necesario"""
-    # Limpieza periódica del set de notificaciones
-    if len(notificaciones_enviadas) > 100:
-        notificaciones_enviadas.clear()
+    """Notifica a usuarios solo cuando es necesario (llamado solo desde cambio de estado a peligro)"""
 
     usuarios = obtener_usuarios_notificables()
     if not usuarios:
         print("No hay usuarios para notificar")
         return
 
-    if 'temperatura' in tipo_alerta and 'humo' in tipo_alerta:
+    if 'emergencia_manual' in tipo_alerta:
+        asunto = "🚨 EMERGENCIA ACTIVADA MANUALMENTE"
+        cuerpo = f"""\
+🚨 ¡EMERGENCIA ACTIVADA POR ADMINISTRADOR!
+El administrador ha activado manualmente el protocolo de emergencia.
+¡EVACUAR INMEDIATAMENTE!
+Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+"""
+    elif 'temperatura' in tipo_alerta and 'humo' in tipo_alerta:
         asunto = "ALERTA CRÍTICA: Incendio Detectado"
         cuerpo = f"""\
 🚨 ¡ALERTA CRÍTICA!
-
-Se ha detectado una emergencia:
-- Temperatura: {temp:.1f}°C
-- Humo: {humo:.0f} ppm
-
+Se ha detectado una emergencia por MÚLTIPLES RIESGOS:
+- Temperatura: {temp:.1f}°C (Umbral: {UMBRAL_TEMPERATURA_PELIGRO}°C)
+- Humo: {humo:.0f} ppm (Umbral: {UMBRAL_HUMO_PELIGRO} ppm)
 ¡EVACUAR INMEDIATAMENTE!
 Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
@@ -243,33 +250,17 @@ Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
         asunto = "ALERTA: Temperatura Alta"
         cuerpo = f"""\
 🔥 ¡PELIGRO DE INCENDIO!
-
 Temperatura crítica detectada:
-- Temperatura: {temp:.1f}°C
-
+- Temperatura: {temp:.1f}°C (Umbral: {UMBRAL_TEMPERATURA_PELIGRO}°C)
 Verificar inmediatamente.
 Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
-    elif 'emergencia_manual' in tipo_alerta:
-        asunto = "🚨 EMERGENCIA ACTIVADA MANUALMENTE"
-        cuerpo = f"""\
-🚨 ¡EMERGENCIA ACTIVADA POR ADMINISTRADOR!
-
-El administrador ha activado manualmente el protocolo de emergencia:
-- Ventilador de evacuación: ACTIVADO
-- Puertas de emergencia: ABIERTAS
-
-¡EVACUAR INMEDIATAMENTE!
-Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
-"""
-    else:
+    else: # Solo Humo
         asunto = "ALERTA: Humo Detectado"
         cuerpo = f"""\
 💨 ¡HUMO DETECTADO!
-
 Nivel de humo elevado:
-- Humo: {humo:.0f} ppm
-
+- Humo: {humo:.0f} ppm (Umbral: {UMBRAL_HUMO_PELIGRO} ppm)
 Evacuar el área.
 Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
@@ -283,17 +274,24 @@ Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 # Inicializar DB
 inicializar_db()
 
+# --------------------------------------------
+# FUNCIÓN CORREGIDA: Usa UMBRAL_..._PELIGRO
+# --------------------------------------------
 def calcular_nivel(valor, tipo):
+    """Clasifica el valor en bajo, normal, alto o peligro."""
     if tipo == 'temperatura':
-        if valor < UMBRAL_TEMP_BAJO: return 'bajo'
-        elif valor < UMBRAL_TEMP_NORMAL: return 'normal'
-        elif valor < UMBRAL_TEMP_ALTO: return 'alto'
-        else: return 'peligro'
+        if valor >= UMBRAL_TEMPERATURA_PELIGRO: return 'peligro' # 45
+        elif valor >= UMBRAL_TEMP_ALTO: return 'alto' # 40
+        elif valor >= UMBRAL_TEMP_NORMAL: return 'normal' # 30
+        elif valor >= UMBRAL_TEMP_BAJO: return 'bajo' # 20
+        else: return 'bajo'
     else:
-        if valor < UMBRAL_HUMO_BAJO: return 'bajo'
-        elif valor < UMBRAL_HUMO_NORMAL: return 'normal'
-        elif valor < UMBRAL_HUMO_ALTO: return 'alto'
-        else: return 'peligro'
+        if valor >= UMBRAL_HUMO_PELIGRO: return 'peligro' # 600
+        elif valor >= UMBRAL_HUMO_ALTO: return 'alto' # 500
+        elif valor >= UMBRAL_HUMO_NORMAL: return 'normal' # 300
+        elif valor >= UMBRAL_HUMO_BAJO: return 'bajo' # 100
+        else: return 'bajo'
+# --------------------------------------------
 
 def parsear_datos(data_str):
     try:
@@ -309,6 +307,9 @@ def parsear_datos(data_str):
     except: pass
     return None, None
 
+# --------------------------------------------
+# 🔑 FUNCIÓN DE LECTURA CORREGIDA (CON "LATCH")
+# --------------------------------------------
 def leer_arduino_continuo():
     global ultima_lectura, estado_peligro_anterior
     print("📡 Lectura continua iniciada...")
@@ -328,21 +329,18 @@ def leer_arduino_continuo():
                         ts = datetime.now().strftime('%H:%M:%S')
                         historico_temperatura.append({'time': ts, 'value': temp})
                         historico_humo.append({'time': ts, 'value': humo})
+                        
+                        # 1. Calcular niveles actuales
                         nivel_temp = calcular_nivel(temp, 'temperatura')
                         nivel_humo = calcular_nivel(humo, 'humo')
                         
-                        # Determinar si hay peligro ACTUAL
-                        alerta_actual = nivel_temp == 'peligro' or nivel_humo == 'peligro'
+                        # 2. Determinar si esta lectura específica es peligrosa
+                        peligro_en_esta_lectura = nivel_temp == 'peligro' or nivel_humo == 'peligro'
 
-                        ultima_lectura.update({
-                            'temperatura': temp, 'humo': humo,
-                            'nivel_temperatura': nivel_temp, 'nivel_humo': nivel_humo,
-                            'alerta': alerta_actual, 'timestamp': ts
-                        })
-
-                        # ✅ SOLO REGISTRAR ALERTA SI HAY CAMBIO DE ESTADO (seguro → peligro)
-                        if alerta_actual and not estado_peligro_anterior:
-                            # INICIO DE NUEVA ALERTA
+                        # 3. LÓGICA DE TRANSICIÓN: Detectar un NUEVO peligro
+                        if peligro_en_esta_lectura and not estado_peligro_anterior:
+                            # CAMBIO DE ESTADO: Seguro -> Peligro
+                            print("🚨 ¡NUEVA ALERTA DETECTADA! Enganchando estado de peligro.")
                             tipos = []
                             if nivel_temp == 'peligro': tipos.append('temperatura')
                             if nivel_humo == 'peligro': tipos.append('humo')
@@ -353,21 +351,38 @@ def leer_arduino_continuo():
                                 'humo': humo, 
                                 'tipo': tipos
                             }
-                            
                             historico_alertas.append(alerta_data)
-                            print(f"🚨 NUEVA ALERTA REGISTRADA: {tipos} | Temp: {temp:.1f}°C | Humo: {humo:.0f} ppm")
                             
-                            # Notificar en hilo separado
+                            # 🔑 ENVÍA EL EMAIL (SOLO 1 VEZ)
                             threading.Thread(
                                 target=notificar_usuarios_alerta,
                                 args=(temp, humo, tipos),
                                 daemon=True
                             ).start()
-                        
-                        # Actualizar estado anterior
-                        estado_peligro_anterior = alerta_actual
+                            
+                            # ENGANCHAR EL ESTADO
+                            estado_peligro_anterior = True
 
-            time.sleep(0.1)
+                        # 4. LÓGICA DE TRANSICIÓN: Detectar que el peligro HA PASADO
+                        elif not peligro_en_esta_lectura and estado_peligro_anterior:
+                            # CAMBIO DE ESTADO: Peligro -> Seguro
+                            print("✅ El peligro ha pasado. Reseteando estado.")
+                            
+                            # SOLTAR EL ESTADO
+                            estado_peligro_anterior = False
+
+                        # 5. Actualizar la última lectura para el cliente
+                        # La bandera 'alerta' AHORA refleja el estado "enganchado"
+                        ultima_lectura.update({
+                            'temperatura': temp, 
+                            'humo': humo,
+                            'nivel_temperatura': nivel_temp, 
+                            'nivel_humo': nivel_humo,
+                            'alerta': estado_peligro_anterior, # 🔑 El cliente ve el estado "enganchado"
+                            'timestamp': ts
+                        })
+
+            time.sleep(0.1) 
         except Exception as e:
             print(f"❌ Error lectura: {e}")
             time.sleep(1)
@@ -375,14 +390,19 @@ def leer_arduino_continuo():
 threading.Thread(target=leer_arduino_continuo, daemon=True).start()
 
 # ============================================
-# RUTAS FLASK
+# RUTAS FLASK (CON LÓGICA DE ADMIN)
 # ============================================
 @app.route('/')
 def index():
     if 'usuario_id' in session:
+        # Esta lógica es necesaria para que funcione el {% if es_admin %} en index.html
+        es_admin = False
+        if session.get('usuario_rol') == 'admin':
+             es_admin = True
+             
         return render_template('index.html', 
-                             usuario=session.get('usuario_nombre'),
-                             es_admin=(session.get('usuario_rol') == 'admin'))
+                               usuario=session.get('usuario_nombre'),
+                               es_admin=es_admin) # Pasar es_admin al template
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -391,11 +411,12 @@ def login():
         data = request.get_json()
         exito, res = verificar_usuario(data.get('email'), data.get('password'))
         if exito:
+            # Guardar el ROL en la sesión es crucial para el Admin
             session.update({
                 'usuario_id': res['id'],
                 'usuario_nombre': res['nombre'],
                 'usuario_telefono': res['telefono'],
-                'usuario_rol': res['rol']
+                'usuario_rol': res.get('rol', 'usuario') # Guardar el rol
             })
             return jsonify({'success': True})
         return jsonify({'success': False, 'mensaje': res}), 401
@@ -472,7 +493,9 @@ def led(accion):
     
 @app.route('/ventilador/<accion>', methods=['POST'])
 def ventilador(accion):
-    """Controla el ventilador de evacuación"""
+    # Solo Admin puede usar esto
+    if session.get('usuario_rol') != 'admin':
+        return jsonify({'success': False, 'mensaje': 'No autorizado'}), 403
     try:
         if accion == 'on':
             arduino.write(b'V')
@@ -487,7 +510,9 @@ def ventilador(accion):
 
 @app.route('/servomotor/<accion>', methods=['POST'])
 def servomotor(accion):
-    """Controla los servomotores de puertas/ventanas"""
+    # Solo Admin puede usar esto
+    if session.get('usuario_rol') != 'admin':
+        return jsonify({'success': False, 'mensaje': 'No autorizado'}), 403
     try:
         if accion == 'abrir':
             arduino.write(b'A')
@@ -512,33 +537,33 @@ def emergencia_manual():
         return jsonify({'success': False, 'mensaje': 'Solo administradores'}), 403
     
     try:
-        # Activar ventilador
+        # Comandos de hardware
         arduino.write(b'V')
-        print("✅ Emergencia manual: Ventilador encendido")
-        
-        # Abrir puertas
         arduino.write(b'A')
-        print("✅ Emergencia manual: Puertas abiertas")
+        print("✅ Emergencia manual: Ventilador y puertas activados")
         
         # Registrar en base de datos como alerta manual
         with lectura_lock:
+            temp_actual = ultima_lectura['temperatura']
+            humo_actual = ultima_lectura['humo']
+
             alerta = {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'temperatura': ultima_lectura['temperatura'],
-                'humo': ultima_lectura['humo'],
+                'temperatura': temp_actual,
+                'humo': humo_actual,
                 'tipo': ['emergencia_manual']
             }
             historico_alertas.append(alerta)
             
-            # Marcar que hay una alerta activa (para evitar duplicados)
+            # ENGANCHAR EL ESTADO
             estado_peligro_anterior = True
             
             # Notificar a usuarios
             threading.Thread(
                 target=notificar_usuarios_alerta,
                 args=(
-                    ultima_lectura['temperatura'], 
-                    ultima_lectura['humo'], 
+                    temp_actual, 
+                    humo_actual, 
                     ['emergencia_manual']
                 ),
                 daemon=True
@@ -549,9 +574,12 @@ def emergencia_manual():
         print(f"❌ Error en emergencia manual: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+
 @app.route('/configuracion', methods=['GET', 'POST'])
 def configuracion():
+    # 🔑 LÍNEA CORREGIDA (eliminando <\ctrl61>O)
     global UMBRAL_TEMPERATURA_PELIGRO, UMBRAL_HUMO_PELIGRO
+    
     if request.method == 'POST':
         data = request.get_json()
         UMBRAL_TEMPERATURA_PELIGRO = data.get('umbral_temperatura', UMBRAL_TEMPERATURA_PELIGRO)
@@ -572,8 +600,9 @@ def estadisticas():
             })
         return jsonify({k: 0 for k in ['temp_promedio', 'temp_max', 'temp_min', 'humo_promedio', 'humo_max', 'humo_min', 'total_alertas', 'lecturas_realizadas']})
 
+
 if __name__ == '__main__':
     print("🚀 Servidor Flask iniciado - Sistema de Alertas Inteligente")
     print("📧 Notificaciones por EMAIL (Gmail)")
-    print("✅ Alertas solo se registran al detectar NUEVO peligro")
+    print("✅ Alertas solo se registran al detectar NUEVO peligro (Lógica de Latch Activada)")
     app.run(debug=True, use_reloader=False)

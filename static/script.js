@@ -2,34 +2,22 @@
 let graficoTemperatura = null;
 let graficoHumo = null;
 let alertaActiva = false;
-let alertaCerradaManualmente = false;
-let tiempoUltimoCierre = 0;
-const TIEMPO_REABRIR = 30000; // 30 segundos
+let alertaCerradaManualmente = false;  // Controla cierre manual
+let ultimoEstadoPeligro = false;       // Para detectar cambios de estado
+let tiempoUltimoCierre = 0;            // Timestamp del último cierre manual
 
-// Variables para control de registro de alertas
-let ultimoEstadoPeligro = {
-    temperatura: false,
-    humo: false
-};
-let tiempoUltimaAlertaRegistrada = 0;
-const TIEMPO_MINIMO_ENTRE_ALERTAS = 10000; // 10 segundos entre alertas
+// 🔑 TU REQUISITO: 20 SEGUNDOS 🔑
+const TIEMPO_REABRIR = 20000;          // 20 segundos
 
 // Inicializar gráficos al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Página cargada - Inicializando sistema');
     inicializarGraficos();
-    actualizar();
-    actualizarHistorico();
-    actualizarAlertas();
     
-    // Actualizar cada segundo
-    setInterval(actualizar, 1000);
-    
-    // Actualizar histórico cada 5 segundos
-    setInterval(actualizarHistorico, 5000);
-    
-    // Actualizar alertas cada 3 segundos
-    setInterval(actualizarAlertas, 3000);
+    // Configuración de intervalos para actualización continua
+    setInterval(actualizar, 1000);        // Actualizar valores en tiempo real cada 1s
+    setInterval(actualizarHistorico, 5000); // Actualizar gráficos cada 5s
+    setInterval(actualizarAlertas, 3000);  // Actualizar lista de alertas cada 3s
 });
 
 // Inicializar gráficos con Chart.js
@@ -91,9 +79,9 @@ function inicializarGraficos() {
     });
 }
 
-// Actualizar lecturas en tiempo real
+// 🔑 FUNCIÓN ACTUALIZAR (CORREGIDA Y SIMPLIFICADA)
 function actualizar() {
-    fetch('/leer')
+    fetch('/leer') // Pregunta al servidor (que ahora tiene el estado "enganchado")
         .then(res => res.json())
         .then(data => {
             // Actualizar valores
@@ -112,103 +100,43 @@ function actualizar() {
             document.getElementById('estado-conexion').textContent = '● Conectado';
             document.getElementById('estado-conexion').className = 'conectado';
             
-            // LÓGICA MEJORADA DE DETECCIÓN Y REGISTRO DE ALERTAS
-            const hayPeligroTemp = data.nivel_temperatura === 'peligro';
-            const hayPeligroHumo = data.nivel_humo === 'peligro';
-            const hayPeligro = hayPeligroTemp || hayPeligroHumo;
-            
+            // 🔑 LÓGICA DEL MODAL (CON TEMPORIZADOR DE 20s)
             const tiempoActual = Date.now();
-            const tiempoTranscurrido = tiempoActual - tiempoUltimoCierre;
-            const tiempoDesdeUltimaAlerta = tiempoActual - tiempoUltimaAlertaRegistrada;
+            const tiempoDesdeUltimoCierre = tiempoActual - tiempoUltimoCierre;
             
-            console.log('🔍 Estado:', {
-                temp: data.temperatura,
-                humo: data.humo,
-                nivel_temp: data.nivel_temperatura,
-                nivel_humo: data.nivel_humo,
-                hayPeligro: hayPeligro,
-                alertaActiva: alertaActiva,
-                cerradaManualmente: alertaCerradaManualmente,
-                tiempoTranscurrido: Math.floor(tiempoTranscurrido / 1000) + 's'
-            });
-            
-            // DETECTAR CAMBIO DE ESTADO A PELIGRO (para registrar alerta)
-            const cambioPeligroTemp = hayPeligroTemp && !ultimoEstadoPeligro.temperatura;
-            const cambioPeligroHumo = hayPeligroHumo && !ultimoEstadoPeligro.humo;
-            const cambioPeligro = cambioPeligroTemp || cambioPeligroHumo;
-            
-            // REGISTRAR ALERTA SOLO CUANDO:
-            // 1. Hay un cambio de estado a peligro Y
-            // 2. Ha pasado el tiempo mínimo desde la última alerta
-            if (cambioPeligro && tiempoDesdeUltimaAlerta > TIEMPO_MINIMO_ENTRE_ALERTAS) {
-                console.log('📝 REGISTRANDO NUEVA ALERTA - Cambio de estado detectado');
-                registrarAlertaEnServidor(data, hayPeligroTemp, hayPeligroHumo);
-                tiempoUltimaAlertaRegistrada = tiempoActual;
-            }
-            
-            // LÓGICA SIMPLIFICADA PARA MOSTRAR MODAL DE ALERTA
-            if (hayPeligro) {
-                console.log('⚠️ HAY PELIGRO DETECTADO - Verificando si mostrar modal');
-                
-                // Verificar si la alerta fue cerrada manualmente recientemente
-                const fueCerradaRecientemente = alertaCerradaManualmente && tiempoTranscurrido < TIEMPO_REABRIR;
-                
-                if (!alertaActiva && !fueCerradaRecientemente) {
-                    console.log('🚨 MOSTRANDO MODAL DE ALERTA');
-                    mostrarAlertaEmergencia(data);
-                    alertaActiva = true;
-                } else if (fueCerradaRecientemente) {
-                    console.log('⏳ Alerta suprimida - Esperando ' + Math.ceil((TIEMPO_REABRIR - tiempoTranscurrido) / 1000) + 's más');
+            if (data.alerta) {
+                // HAY PELIGRO (Detectado por el servidor y "enganchado")
+                if (!alertaActiva) {
+                    // La alerta no está visible actualmente
+                    if (!alertaCerradaManualmente || tiempoDesdeUltimoCierre > TIEMPO_REABRIR) {
+                        // Mostrar si: no fue cerrada manualmente O ya pasó el tiempo de espera (20s)
+                        console.log("Mostrando modal: peligro detectado y temporizador expirado.");
+                        mostrarAlertaEmergencia(data);
+                        alertaActiva = true;
+                        alertaCerradaManualmente = false; // Reset
+                    } else {
+                        console.log("Peligro persiste, pero modal suprimido (esperando 20s).");
+                    }
                 }
+                ultimoEstadoPeligro = true;
             } else {
-                // No hay peligro - cerrar alerta visual si está activa
+                // NO HAY PELIGRO
                 if (alertaActiva) {
-                    console.log('✅ Sin peligro - Cerrando alerta automáticamente');
+                    // Cerrar alerta automáticamente
+                    console.log("Cerrando modal: peligro ha pasado.");
                     ocultarAlertaEmergencia();
                     alertaActiva = false;
-                    // Reset cuando no hay peligro
-                    alertaCerradaManualmente = false;
                 }
+                // Reset completo cuando no hay peligro
+                alertaCerradaManualmente = false;
+                ultimoEstadoPeligro = false;
             }
-            
-            // Actualizar estado anterior para la próxima comparación
-            ultimoEstadoPeligro.temperatura = hayPeligroTemp;
-            ultimoEstadoPeligro.humo = hayPeligroHumo;
         })
         .catch(error => {
             console.error('❌ Error al actualizar:', error);
             document.getElementById('estado-conexion').textContent = '● Desconectado';
             document.getElementById('estado-conexion').className = 'desconectado';
         });
-}
-
-// Función para registrar alerta en el servidor
-function registrarAlertaEnServidor(data, peligroTemp, peligroHumo) {
-    const tiposAlerta = [];
-    if (peligroTemp) tiposAlerta.push('temperatura');
-    if (peligroHumo) tiposAlerta.push('humo');
-    
-    fetch('/alertas/registrar', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            temperatura: data.temperatura,
-            humo: data.humo,
-            tipo: tiposAlerta,
-            timestamp: new Date().toLocaleString()
-        })
-    })
-    .then(res => res.json())
-    .then(resultado => {
-        console.log('✅ Alerta registrada en servidor:', resultado);
-        // Actualizar la lista de alertas inmediatamente
-        actualizarAlertas();
-    })
-    .catch(error => {
-        console.error('❌ Error al registrar alerta:', error);
-    });
 }
 
 // Actualizar el estado visual de los indicadores
@@ -249,15 +177,22 @@ function mostrarAlertaEmergencia(data) {
     const tempSpan = document.getElementById('alerta-temp');
     const humoSpan = document.getElementById('alerta-humo');
     
-    if (mensaje) mensaje.textContent = 'Se han detectado niveles peligrosos. ¡Evacuar inmediatamente!';
+    if (mensaje) {
+        let msg = 'Se han detectado niveles peligrosos. ¡Evacuar inmediatamente!';
+        if (data.nivel_temperatura === 'peligro' && data.nivel_humo === 'peligro') {
+            msg = '¡PELIGRO CRÍTICO! NIVELES ALTOS DE TEMPERATURA Y HUMO DETECTADOS.';
+        } else if (data.nivel_temperatura === 'peligro') {
+            msg = '¡ALERTA DE TEMPERATURA! Peligro de incendio detectado.';
+        } else if (data.nivel_humo === 'peligro') {
+            msg = '¡ALERTA DE HUMO! Concentración peligrosa detectada.';
+        }
+        mensaje.textContent = msg;
+    }
+    
     if (tempSpan) tempSpan.textContent = `🌡️ ${data.temperatura.toFixed(1)}°C`;
     if (humoSpan) humoSpan.textContent = `💨 ${data.humo.toFixed(1)} ppm`;
     
-    // Remover clase oculto
     alertaDiv.classList.remove('oculto');
-    console.log('✅ Modal mostrado - Clases:', alertaDiv.className);
-    
-    // Reproducir sonido
     reproducirSonidoAlerta();
 }
 
@@ -267,7 +202,6 @@ function ocultarAlertaEmergencia() {
     const alertaDiv = document.getElementById('alerta-emergencia');
     if (alertaDiv) {
         alertaDiv.classList.add('oculto');
-        console.log('✅ Modal oculto - Clases:', alertaDiv.className);
     }
 }
 
@@ -278,7 +212,7 @@ function cerrarAlertaManual(event) {
         event.stopPropagation();
     }
     
-    console.log('👆 Usuario cerró la alerta manualmente');
+    console.log('👆 Usuario cerró la alerta manualmente. Iniciando temporizador de 20s.');
     
     alertaCerradaManualmente = true;
     alertaActiva = false;
@@ -401,13 +335,9 @@ function activarEmergenciaManual() {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                // Registrar alerta manual
-                registrarAlertaEnServidor(
-                    {temperatura: 0, humo: 0}, 
-                    false, 
-                    false
-                );
                 mostrarNotificacion('🚨 MODO DE EMERGENCIA ACTIVADO: Ventilador encendido y puertas abiertas', 'success');
+                // Forzar actualización de alertas ya que el servidor registró la manual
+                actualizarAlertas(); 
             } else {
                 mostrarNotificacion(`❌ Error: ${data.mensaje || 'No se pudo activar la emergencia'}`, 'error');
             }

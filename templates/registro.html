@@ -17,18 +17,25 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 20px;
+            
+            /* 1. Mantenemos el contenedor alineado arriba */
+            align-items: flex-start;
+            padding: 2rem 1rem; 
         }
 
-        .container-registro {
+        /* Contenedor principal que se divide */
+        .split-container {
+            display: flex;
             background: white;
-            padding: 3rem;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 450px;
+            max-width: 900px;
             width: 100%;
+            overflow: hidden; 
             animation: slideIn 0.5s ease;
+            
+            /* 2. ELIMINADO max-height: 90vh; */
+            /* Ahora el contenedor crecerá con el contenido */
         }
 
         @keyframes slideIn {
@@ -42,9 +49,70 @@
             }
         }
 
+        /* --- Columna Izquierda (Imagen) --- */
+        .split-left {
+            flex-basis: 45%;
+            background-image: url("{{ url_for('static', filename='fondo_m.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            position: relative;
+        }
+        
+        .split-left::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 30, 70, 0.6);
+            z-index: 1;
+        }
+
+        .split-left .image-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .split-left h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .split-left p {
+            font-size: 1.1rem;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+        }
+
+        /* --- Columna Derecha (Formulario) --- */
+        .split-right {
+            flex-basis: 55%;
+            padding: 2rem 3rem; 
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; 
+            
+            /* 3. ELIMINADO max-height y overflow-y */
+            /* El panel derecho ahora crecerá naturalmente */
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 380px;
+        }
+
         .logo {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         .logo h1 {
@@ -59,7 +127,7 @@
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem; 
         }
 
         .form-group label {
@@ -120,11 +188,11 @@
             border-radius: 10px;
             margin-bottom: 1rem;
             display: none;
+            animation: fadeIn 0.3s ease;
         }
 
         .alert.show {
             display: block;
-            animation: fadeIn 0.3s ease;
         }
 
         .alert-error {
@@ -141,7 +209,7 @@
 
         .divider {
             text-align: center;
-            margin: 2rem 0;
+            margin: 1.5rem 0;
             color: #999;
             position: relative;
         }
@@ -155,18 +223,13 @@
             height: 1px;
             background: #e0e0e0;
         }
-
-        .divider::before {
-            left: 0;
-        }
-
-        .divider::after {
-            right: 0;
-        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
 
         .link-login {
             text-align: center;
             margin-top: 1.5rem;
+            margin-bottom: 1rem; 
             color: #666;
         }
 
@@ -175,7 +238,6 @@
             text-decoration: none;
             font-weight: 600;
         }
-
         .link-login a:hover {
             text-decoration: underline;
         }
@@ -185,59 +247,93 @@
             to { opacity: 1; }
         }
 
-        @media (max-width: 480px) {
-            .container-registro {
-                padding: 2rem 1.5rem;
+        /* Responsive */
+        @media (max-width: 900px) {
+            body {
+                align-items: flex-start;
+                padding: 2rem 1rem;
+            }
+            .split-container {
+                flex-direction: column;
+                max-width: 450px;
+                max-height: none; 
+            }
+            .split-left {
+                display: none;
+            }
+            .split-right {
+                flex-basis: 100%;
+                padding: 2.5rem;
+                max-height: none; 
+                overflow-y: visible; /* Sin scroll en móvil */
+            }
+            .form-container {
+                max-width: 100%;
             }
         }
+
     </style>
 </head>
 <body>
-    <div class="container-registro">
-        <div class="logo">
-            <h1>🔔 Sistema de Alerta</h1>
-            <p>Crea tu cuenta para recibir notificaciones</p>
+    
+    <div class="split-container">
+        
+        <div class="split-left">
+            <div class="image-content">
+                <h2>🔔 Crea tu Cuenta</h2>
+                <p>Regístrate para recibir alertas y mantenerte informado.</p>
+            </div>
         </div>
 
-        <div id="alerta-mensaje" class="alert"></div>
+        <div class="split-right">
 
-        <form id="form-registro">
-            <div class="form-group">
-                <label for="nombre">Nombre Completo</label>
-                <input type="text" id="nombre" name="nombre" required placeholder="Juan Pérez">
+            <div class="form-container">
+                <div class="logo">
+                    <h1>Crear Cuenta</h1>
+                    <p>Recibe notificaciones de alerta</p>
+                </div>
+        
+                <div id="alerta-mensaje" class="alert"></div>
+        
+                <form id="form-registro">
+                    <div class="form-group">
+                        <label for="nombre">Nombre Completo</label>
+                        <input type="text" id="nombre" name="nombre" required placeholder="Juan Pérez">
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="tu@email.com">
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="telefono">Teléfono (Opcional)</label>
+                        <input type="tel" id="telefono" name="telefono" placeholder="+593987654321">
+                        <small>Ej: +593987654321 (Ecuador)</small>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" name="password" required placeholder="Mínimo 6 caracteres">
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="password_confirm">Confirmar Contraseña</label>
+                        <input type="password" id="password_confirm" name="password_confirm" required placeholder="Repite tu contraseña">
+                    </div>
+        
+                    <button type="submit" class="btn-primary" id="btn-registro">
+                        Crear Cuenta
+                    </button>
+                </form>
+        
+                <div class="divider">o</div>
+        
+                <div class="link-login">
+                    ¿Ya tienes cuenta? <a href="/login">Inicia sesión aquí</a>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="tu@email.com">
-            </div>
-
-            <div class="form-group">
-                <label for="telefono">Teléfono (con código de país)</label>
-                <input type="tel" id="telefono" name="telefono" required placeholder="+593987654321">
-                <small>Formato: +593987654321 (Ecuador)</small>
-            </div>
-
-            <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required placeholder="Mínimo 6 caracteres">
-                <small>Mínimo 6 caracteres</small>
-            </div>
-
-            <div class="form-group">
-                <label for="password_confirm">Confirmar Contraseña</label>
-                <input type="password" id="password_confirm" name="password_confirm" required placeholder="Repite tu contraseña">
-            </div>
-
-            <button type="submit" class="btn-primary" id="btn-registro">
-                Crear Cuenta
-            </button>
-        </form>
-
-        <div class="divider">o</div>
-
-        <div class="link-login">
-            ¿Ya tienes cuenta? <a href="/login">Inicia sesión aquí</a>
         </div>
     </div>
 
@@ -266,7 +362,7 @@
                 return;
             }
 
-            if (!telefono.startsWith('+')) {
+            if (telefono && !telefono.startsWith('+') && telefono.length > 0) {
                 mostrarAlerta('El teléfono debe incluir el código de país (ej: +593)', 'error');
                 return;
             }

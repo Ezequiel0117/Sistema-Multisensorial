@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <!-- Alerta de emergencia -->
     <div id="alerta-emergencia" class="alerta-emergencia oculto">
         <div class="alerta-contenido">
             <button class="btn-cerrar-alerta" onclick="cerrarAlertaManual(event)" title="Cerrar alerta">
@@ -27,7 +26,6 @@
         </div>
     </div>
 
-    <!-- HEADER -->
     <header>
         <div class="header-top">
             <h1>🔔 Sistema Multisensorial de Alerta Inclusiva</h1>
@@ -57,14 +55,12 @@
         </div>
     </header>
 
-    <!-- PANEL DE CONTROL ADMIN (Solo visible para administradores) -->
     {% if es_admin %}
     <section class="panel-admin">
         <div class="container">
             <h2>🎛️ Panel de Control de Administrador</h2>
             
             <div class="controles-admin-grid">
-                <!-- Botón de Emergencia Manual -->
                 <div class="control-admin-card">
                     <h4>🚨 EMERGENCIA MANUAL</h4>
                     <button class="btn-control btn-emergencia" onclick="activarEmergenciaManual()">
@@ -72,11 +68,10 @@
                         <span class="btn-texto">ACTIVAR EMERGENCIA</span>
                     </button>
                     <p class="control-descripcion">
-                        Activa ventilador y abre puertas automáticamente
+                        Activa ventilador y abre puerta automáticamente
                     </p>
                 </div>
 
-                <!-- Control de Ventilador -->
                 <div class="control-admin-card">
                     <h4>🌀 VENTILADOR</h4>
                     <div class="botones-control">
@@ -91,9 +86,8 @@
                     </div>
                 </div>
 
-                <!-- Control de Puertas -->
                 <div class="control-admin-card">
-                    <h4>🚪 PUERTAS</h4>
+                    <h4>🚪 PUERTA</h4>
                     <div class="botones-control">
                         <button class="btn-control btn-servo-abrir" onclick="abrirPuertas()">
                             <span class="btn-icono">🔓</span>
@@ -111,7 +105,6 @@
     {% endif %}
 
     <div class="container">
-        <!-- 1. NIVELES DE ALERTA -->
         <section class="leyenda-section">
             <h2>📋 Niveles de Alerta</h2>
             <div class="leyenda-grid">
@@ -133,7 +126,7 @@
                     <span class="leyenda-color"></span>
                     <div>
                         <strong>ALTO</strong>
-                        <p>Temp: 30-40°C | Humo: 300-500 ppm</p>
+                        <p>Temp: 30-45°C | Humo: 300-600 ppm</p>
                     </div>
                 </div>
                 <div class="leyenda-item peligro">
@@ -146,12 +139,10 @@
             </div>
         </section>
 
-        <!-- 2. LECTURAS EN TIEMPO REAL -->
         <section class="panel-principal">
             <h2>📊 Lecturas en Tiempo Real</h2>
             
             <div class="medidores-grid">
-                <!-- Medidor de Temperatura -->
                 <div class="medidor-card">
                     <div class="medidor-header">
                         <span class="icono">🌡️</span>
@@ -165,11 +156,10 @@
                         <span class="estado-texto">BAJO</span>
                     </div>
                     <div class="umbral-info">
-                        <small>Umbral de peligro: <strong>60°C</strong></small>
+                        <small>Umbral de peligro: <strong>45°C</strong></small>
                     </div>
                 </div>
 
-                <!-- Medidor de Humo -->
                 <div class="medidor-card">
                     <div class="medidor-header">
                         <span class="icono">💨</span>
@@ -183,13 +173,12 @@
                         <span class="estado-texto">BAJO</span>
                     </div>
                     <div class="umbral-info">
-                        <small>Umbral de peligro: <strong>400 ppm</strong></small>
+                        <small>Umbral de peligro: <strong>600 ppm</strong></small>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- 3. REGISTRO DE ALERTAS -->
         <section class="alertas-section">
             <h2>🚨 Registro de Alertas</h2>
             <div id="lista-alertas" class="lista-alertas">
@@ -197,7 +186,6 @@
             </div>
         </section>
 
-        <!-- 4. HISTÓRICO DE LECTURAS (Grid 2 columnas) -->
         <section class="graficos-section">
             <h2>📈 Histórico de Lecturas</h2>
             
