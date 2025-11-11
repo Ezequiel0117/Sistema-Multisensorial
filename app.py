@@ -15,12 +15,9 @@ from email.mime.multipart import MIMEMultipart
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
-# ============================================
-# CONFIGURACIÓN DE EMAIL (GMAIL GRATIS)
-# ============================================
 EMAIL_ENABLED = True
-GMAIL_USER = "tucorreo@gmail.com"  # <-- REEMPLAZA
-GMAIL_APP_PASSWORD = "tucontraseña"  # <-- REEMPLAZA (16 caracteres)
+GMAIL_USER = "tucorreo@gmail.com"
+GMAIL_APP_PASSWORD = "tucontraseña"
 
 def enviar_email(destinatario, asunto, cuerpo):
     """Envía email usando Gmail SMTP"""
@@ -57,20 +54,23 @@ historico_alertas = deque(maxlen=20)
 # Control de spam: 1 notificación por minuto
 notificaciones_enviadas = set()
 
+# NUEVA VARIABLE: Estado previo de peligro
+estado_peligro_anterior = False
+
 # Última lectura
 ultima_lectura = {
     'temperatura': 0, 'humo': 0,
-    'nivel_temperatura':327, 'nivel_humo': 'sin_datos',
+    'nivel_temperatura': 'bajo', 'nivel_humo': 'bajo',
     'alerta': False, 'timestamp': datetime.now().strftime('%H:%M:%S')
 }
 
 lectura_lock = threading.Lock()
 
-# Umbrales
-UMBRAL_TEMPERATURA_PELIGRO = 60
-UMBRAL_HUMO_PELIGRO = 400
-UMBRAL_TEMP_BAJO, UMBRAL_TEMP_NORMAL, UMBRAL_TEMP_ALTO = 25, 40, 50
-UMBRAL_HUMO_BAJO, UMBRAL_HUMO_NORMAL, UMBRAL_HUMO_ALTO = 100, 200, 300
+# Umbrales actualizados
+UMBRAL_TEMPERATURA_PELIGRO = 45  # ✅ Alerta a partir de 45°C
+UMBRAL_HUMO_PELIGRO = 600  # ✅ Alerta a partir de 600 ppm
+UMBRAL_TEMP_BAJO, UMBRAL_TEMP_NORMAL, UMBRAL_TEMP_ALTO = 20, 30, 40
+UMBRAL_HUMO_BAJO, UMBRAL_HUMO_NORMAL, UMBRAL_HUMO_ALTO = 100, 300, 500
 
 # Arduino (real o dummy)
 try:
@@ -94,7 +94,9 @@ except Exception as e:
                 temp += random.uniform(20, 40)
                 humo += random.uniform(200, 300)
             return f"T:{temp:.1f},H:{humo:.1f},RH:60.0".encode('utf-8')
-        def write(self, data): print(f"Dummy.write: {data}")
+        def write(self, data): 
+            print(f"Dummy.write: {data}")
+            return len(data)
     
     arduino = DummyArduino()
     usar_dummy = True
@@ -105,14 +107,18 @@ except Exception as e:
 def inicializar_db():
     conn = sqlite3.connect('alertas.db')
     c = conn.cursor()
+    
+    # Agregar columna 'rol' a la tabla usuarios
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   nombre TEXT NOT NULL,
                   email TEXT UNIQUE NOT NULL,
                   telefono TEXT,
                   password_hash TEXT NOT NULL,
+                  rol TEXT DEFAULT 'usuario',
                   notificaciones_activas INTEGER DEFAULT 1,
                   fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
     c.execute('''CREATE TABLE IF NOT EXISTS notificaciones
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   usuario_id INTEGER,
@@ -123,11 +129,24 @@ def inicializar_db():
                   enviado INTEGER DEFAULT 0,
                   fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   FOREIGN KEY (usuario_id) REFERENCES usuarios(id))''')
+    
     conn.commit()
+    
+    # Crear usuario admin por defecto si no existe
+    c.execute("SELECT * FROM usuarios WHERE email = 'admin@sistema.com'")
+    if not c.fetchone():
+        c.execute('''INSERT INTO usuarios (nombre, email, telefono, password_hash, rol)
+                     VALUES (?, ?, ?, ?, ?)''',
+                  ('Administrador', 'admin@sistema.com', '', 
+                   hash_password('admin123'), 'admin'))
+        conn.commit()
+        print("✅ Usuario admin creado: admin@sistema.com / admin123")
+    
     conn.close()
-    print("Base de datos inicializada")
+    print("✅ Base de datos inicializada")
 
-def hash_password(p): return hashlib.sha256(p.encode()).hexdigest()
+def hash_password(p): 
+    return hashlib.sha256(p.encode()).hexdigest()
 
 def registrar_usuario(nombre, email, telefono, password):
     try:
@@ -145,15 +164,28 @@ def registrar_usuario(nombre, email, telefono, password):
         return False, str(e)
 
 def verificar_usuario(email, password):
+    """Verifica las credenciales del usuario"""
     try:
         conn = sqlite3.connect('alertas.db')
         c = conn.cursor()
-        c.execute('SELECT id, nombre, telefono, notificaciones_activas FROM usuarios WHERE email = ? AND password_hash = ?',
-                  (email, hash_password(password)))
+        
+        password_hash = hash_password(password)
+        # Ahora incluimos el rol
+        c.execute('''SELECT id, nombre, telefono, notificaciones_activas, rol 
+                     FROM usuarios WHERE email = ? AND password_hash = ?''',
+                  (email, password_hash))
+        
         u = c.fetchone()
         conn.close()
+        
         if u:
-            return True, {'id': u[0], 'nombre': u[1], 'telefono': u[2], 'notificaciones_activas': u[3]}
+            return True, {
+                'id': u[0], 
+                'nombre': u[1], 
+                'telefono': u[2], 
+                'notificaciones_activas': u[3],
+                'rol': u[4]
+            }
         return False, "Credenciales incorrectas"
     except Exception as e:
         return False, str(e)
@@ -185,11 +217,9 @@ def registrar_notificacion_db(uid, tipo, temp, humo, msg, enviado):
 # NOTIFICACIÓN POR EMAIL
 # ============================================
 def notificar_usuarios_alerta(temp, humo, tipo_alerta):
-    clave = datetime.now().strftime('%Y-%m-%d %H:%M')
-    if clave in notificaciones_enviadas:
-        return
-    notificaciones_enviadas.add(clave)
-    if len(notificaciones_enviadas) > 10:
+    """Notifica a usuarios solo cuando es necesario"""
+    # Limpieza periódica del set de notificaciones
+    if len(notificaciones_enviadas) > 100:
         notificaciones_enviadas.clear()
 
     usuarios = obtener_usuarios_notificables()
@@ -220,6 +250,18 @@ Temperatura crítica detectada:
 Verificar inmediatamente.
 Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 """
+    elif 'emergencia_manual' in tipo_alerta:
+        asunto = "🚨 EMERGENCIA ACTIVADA MANUALMENTE"
+        cuerpo = f"""\
+🚨 ¡EMERGENCIA ACTIVADA POR ADMINISTRADOR!
+
+El administrador ha activado manualmente el protocolo de emergencia:
+- Ventilador de evacuación: ACTIVADO
+- Puertas de emergencia: ABIERTAS
+
+¡EVACUAR INMEDIATAMENTE!
+Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+"""
     else:
         asunto = "ALERTA: Humo Detectado"
         cuerpo = f"""\
@@ -236,7 +278,7 @@ Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
         enviado = enviar_email(u['email'], asunto, cuerpo)
         registrar_notificacion_db(u['id'], ','.join(tipo_alerta), temp, humo, cuerpo, 1 if enviado else 0)
 
-    print(f"Notificación por email enviada a {len(usuarios)} usuario(s)")
+    print(f"✅ Notificación enviada a {len(usuarios)} usuario(s): {', '.join(tipo_alerta)}")
 
 # Inicializar DB
 inicializar_db()
@@ -268,13 +310,17 @@ def parsear_datos(data_str):
     return None, None
 
 def leer_arduino_continuo():
-    global ultima_lectura
-    print("Lectura continua iniciada...")
+    global ultima_lectura, estado_peligro_anterior
+    print("📡 Lectura continua iniciada...")
+    
     while True:
         try:
-            if not usar_dummy:
+            if usar_dummy:
+                data = arduino.readline().decode('utf-8', errors='ignore').strip()
+            else:
                 arduino.reset_input_buffer()
-            data = arduino.readline().decode('utf-8', errors='ignore').strip()
+                data = arduino.readline().decode('utf-8', errors='ignore').strip()
+
             if data:
                 temp, humo = parsear_datos(data)
                 if temp is not None and humo is not None:
@@ -284,33 +330,46 @@ def leer_arduino_continuo():
                         historico_humo.append({'time': ts, 'value': humo})
                         nivel_temp = calcular_nivel(temp, 'temperatura')
                         nivel_humo = calcular_nivel(humo, 'humo')
-                        alerta = nivel_temp == 'peligro' or nivel_humo == 'peligro'
+                        
+                        # Determinar si hay peligro ACTUAL
+                        alerta_actual = nivel_temp == 'peligro' or nivel_humo == 'peligro'
 
                         ultima_lectura.update({
                             'temperatura': temp, 'humo': humo,
                             'nivel_temperatura': nivel_temp, 'nivel_humo': nivel_humo,
-                            'alerta': alerta, 'timestamp': ts
+                            'alerta': alerta_actual, 'timestamp': ts
                         })
 
-                        if alerta:
+                        # ✅ SOLO REGISTRAR ALERTA SI HAY CAMBIO DE ESTADO (seguro → peligro)
+                        if alerta_actual and not estado_peligro_anterior:
+                            # INICIO DE NUEVA ALERTA
                             tipos = []
                             if nivel_temp == 'peligro': tipos.append('temperatura')
                             if nivel_humo == 'peligro': tipos.append('humo')
+                            
                             alerta_data = {
                                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                'temperatura': temp, 'humo': humo, 'tipo': tipos
+                                'temperatura': temp, 
+                                'humo': humo, 
+                                'tipo': tipos
                             }
-                            if not historico_alertas or historico_alertas[-1]['timestamp'] != alerta_data['timestamp']:
-                                historico_alertas.append(alerta_data)
-                                threading.Thread(
-                                    target=notificar_usuarios_alerta,
-                                    args=(temp, humo, tipos),
-                                    daemon=True
-                                ).start()
+                            
+                            historico_alertas.append(alerta_data)
+                            print(f"🚨 NUEVA ALERTA REGISTRADA: {tipos} | Temp: {temp:.1f}°C | Humo: {humo:.0f} ppm")
+                            
+                            # Notificar en hilo separado
+                            threading.Thread(
+                                target=notificar_usuarios_alerta,
+                                args=(temp, humo, tipos),
+                                daemon=True
+                            ).start()
+                        
+                        # Actualizar estado anterior
+                        estado_peligro_anterior = alerta_actual
 
             time.sleep(0.1)
         except Exception as e:
-            print(f"Error lectura: {e}")
+            print(f"❌ Error lectura: {e}")
             time.sleep(1)
 
 threading.Thread(target=leer_arduino_continuo, daemon=True).start()
@@ -321,7 +380,9 @@ threading.Thread(target=leer_arduino_continuo, daemon=True).start()
 @app.route('/')
 def index():
     if 'usuario_id' in session:
-        return render_template('index.html', usuario=session.get('usuario_nombre'))
+        return render_template('index.html', 
+                             usuario=session.get('usuario_nombre'),
+                             es_admin=(session.get('usuario_rol') == 'admin'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -333,7 +394,8 @@ def login():
             session.update({
                 'usuario_id': res['id'],
                 'usuario_nombre': res['nombre'],
-                'usuario_telefono': res['telefono']
+                'usuario_telefono': res['telefono'],
+                'usuario_rol': res['rol']
             })
             return jsonify({'success': True})
         return jsonify({'success': False, 'mensaje': res}), 401
@@ -413,10 +475,10 @@ def ventilador(accion):
     """Controla el ventilador de evacuación"""
     try:
         if accion == 'on':
-            arduino.write(b'V')  # V mayúscula para encender ventilador
+            arduino.write(b'V')
             print("✅ Ventilador encendido")
         elif accion == 'off':
-            arduino.write(b'v')  # v minúscula para apagar ventilador
+            arduino.write(b'v')
             print("✅ Ventilador apagado")
         return jsonify({'success': True, 'estado': accion})
     except Exception as e:
@@ -428,14 +490,63 @@ def servomotor(accion):
     """Controla los servomotores de puertas/ventanas"""
     try:
         if accion == 'abrir':
-            arduino.write(b'A')  # A para Abrir (90°)
+            arduino.write(b'A')
             print("✅ Servomotores: Puertas ABIERTAS")
         elif accion == 'cerrar':
-            arduino.write(b'C')  # C para Cerrar (0°)
+            arduino.write(b'C')
             print("✅ Servomotores: Puertas CERRADAS")
         return jsonify({'success': True, 'estado': accion})
     except Exception as e:
         print(f"❌ Error al controlar servomotor: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/emergencia/manual', methods=['POST'])
+def emergencia_manual():
+    """Activa emergencia manualmente (solo admin)"""
+    global estado_peligro_anterior
+    
+    if 'usuario_id' not in session:
+        return jsonify({'success': False, 'mensaje': 'No autorizado'}), 401
+    
+    if session.get('usuario_rol') != 'admin':
+        return jsonify({'success': False, 'mensaje': 'Solo administradores'}), 403
+    
+    try:
+        # Activar ventilador
+        arduino.write(b'V')
+        print("✅ Emergencia manual: Ventilador encendido")
+        
+        # Abrir puertas
+        arduino.write(b'A')
+        print("✅ Emergencia manual: Puertas abiertas")
+        
+        # Registrar en base de datos como alerta manual
+        with lectura_lock:
+            alerta = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'temperatura': ultima_lectura['temperatura'],
+                'humo': ultima_lectura['humo'],
+                'tipo': ['emergencia_manual']
+            }
+            historico_alertas.append(alerta)
+            
+            # Marcar que hay una alerta activa (para evitar duplicados)
+            estado_peligro_anterior = True
+            
+            # Notificar a usuarios
+            threading.Thread(
+                target=notificar_usuarios_alerta,
+                args=(
+                    ultima_lectura['temperatura'], 
+                    ultima_lectura['humo'], 
+                    ['emergencia_manual']
+                ),
+                daemon=True
+            ).start()
+        
+        return jsonify({'success': True, 'mensaje': 'Emergencia activada'})
+    except Exception as e:
+        print(f"❌ Error en emergencia manual: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/configuracion', methods=['GET', 'POST'])
@@ -462,5 +573,7 @@ def estadisticas():
         return jsonify({k: 0 for k in ['temp_promedio', 'temp_max', 'temp_min', 'humo_promedio', 'humo_max', 'humo_min', 'total_alertas', 'lecturas_realizadas']})
 
 if __name__ == '__main__':
-    print("Servidor Flask iniciado - Notificaciones por EMAIL (Gmail)")
+    print("🚀 Servidor Flask iniciado - Sistema de Alertas Inteligente")
+    print("📧 Notificaciones por EMAIL (Gmail)")
+    print("✅ Alertas solo se registran al detectar NUEVO peligro")
     app.run(debug=True, use_reloader=False)

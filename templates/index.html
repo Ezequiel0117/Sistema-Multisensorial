@@ -11,28 +11,35 @@
     <!-- Alerta de emergencia -->
     <div id="alerta-emergencia" class="alerta-emergencia oculto">
         <div class="alerta-contenido">
-            <button class="btn-cerrar-alerta" onclick="cerrarAlertaManual()" title="Cerrar alerta">
+            <button class="btn-cerrar-alerta" onclick="cerrarAlertaManual(event)" title="Cerrar alerta">
                 ✕
             </button>
             <div class="alerta-icono">⚠️</div>
             <h2>¡ALERTA DE EMERGENCIA!</h2>
             <p id="alerta-mensaje">Niveles peligrosos detectados</p>
             <div class="alerta-detalles">
-                <span id="alerta-temp"></span>
-                <span id="alerta-humo"></span>
+                <span id="alerta-temp">🌡️ --°C</span>
+                <span id="alerta-humo">💨 -- ppm</span>
             </div>
-            <button class="btn-alerta-accion" onclick="cerrarAlertaManual()">
+            <button class="btn-alerta-accion" onclick="cerrarAlertaManual(event)">
                 Entendido
             </button>
         </div>
     </div>
 
+    <!-- HEADER -->
     <header>
         <div class="header-top">
             <h1>🔔 Sistema Multisensorial de Alerta Inclusiva</h1>
             {% if usuario %}
             <div class="header-usuario">
-                <span class="usuario-badge">👤 {{ usuario }}</span>
+                <span class="usuario-badge">
+                    {% if es_admin %}
+                    👑 {{ usuario }} (Admin)
+                    {% else %}
+                    👤 {{ usuario }}
+                    {% endif %}
+                </span>
                 <a href="/perfil" class="btn-header btn-perfil">
                     <span class="btn-icono">⚙️</span>
                     <span class="btn-texto">Perfil</span>
@@ -50,8 +57,96 @@
         </div>
     </header>
 
+    <!-- PANEL DE CONTROL ADMIN (Solo visible para administradores) -->
+    {% if es_admin %}
+    <section class="panel-admin">
+        <div class="container">
+            <h2>🎛️ Panel de Control de Administrador</h2>
+            
+            <div class="controles-admin-grid">
+                <!-- Botón de Emergencia Manual -->
+                <div class="control-admin-card">
+                    <h4>🚨 EMERGENCIA MANUAL</h4>
+                    <button class="btn-control btn-emergencia" onclick="activarEmergenciaManual()">
+                        <span class="btn-icono">🚨</span>
+                        <span class="btn-texto">ACTIVAR EMERGENCIA</span>
+                    </button>
+                    <p class="control-descripcion">
+                        Activa ventilador y abre puertas automáticamente
+                    </p>
+                </div>
+
+                <!-- Control de Ventilador -->
+                <div class="control-admin-card">
+                    <h4>🌀 VENTILADOR</h4>
+                    <div class="botones-control">
+                        <button class="btn-control btn-ventilador-on" onclick="encenderVentilador()">
+                            <span class="btn-icono">🌀</span>
+                            <span class="btn-texto">Encender</span>
+                        </button>
+                        <button class="btn-control btn-ventilador-off" onclick="apagarVentilador()">
+                            <span class="btn-icono">⏹️</span>
+                            <span class="btn-texto">Apagar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Control de Puertas -->
+                <div class="control-admin-card">
+                    <h4>🚪 PUERTAS</h4>
+                    <div class="botones-control">
+                        <button class="btn-control btn-servo-abrir" onclick="abrirPuertas()">
+                            <span class="btn-icono">🔓</span>
+                            <span class="btn-texto">Abrir</span>
+                        </button>
+                        <button class="btn-control btn-servo-cerrar" onclick="cerrarPuertas()">
+                            <span class="btn-icono">🔒</span>
+                            <span class="btn-texto">Cerrar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <div class="container">
-        <!-- Panel de lecturas en tiempo real -->
+        <!-- 1. NIVELES DE ALERTA -->
+        <section class="leyenda-section">
+            <h2>📋 Niveles de Alerta</h2>
+            <div class="leyenda-grid">
+                <div class="leyenda-item bajo">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>BAJO</strong>
+                        <p>Temp: &lt;20°C | Humo: &lt;100 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item normal">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>NORMAL</strong>
+                        <p>Temp: 20-30°C | Humo: 100-300 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item alto">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>ALTO</strong>
+                        <p>Temp: 30-40°C | Humo: 300-500 ppm</p>
+                    </div>
+                </div>
+                <div class="leyenda-item peligro">
+                    <span class="leyenda-color"></span>
+                    <div>
+                        <strong>PELIGRO</strong>
+                        <p>Temp: ≥45°C | Humo: ≥600 ppm</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. LECTURAS EN TIEMPO REAL -->
         <section class="panel-principal">
             <h2>📊 Lecturas en Tiempo Real</h2>
             
@@ -92,80 +187,9 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Panel de Controles -->
-            <div class="controles-panel">
-                <h3>🎛️ Panel de Control</h3>
-                
-                <!-- Botón de Emergencia Manual -->
-                <div class="control-grupo">
-                    <h4>🚨 BOTÓN DE EMERGENCIA MANUAL</h4>
-                    <div class="botones-control">
-                        <button class="btn-control btn-emergencia" onclick="activarEmergenciaManual()">
-                            <span class="btn-icono">🚨</span>
-                            <span class="btn-texto">ACTIVAR EMERGENCIA</span>
-                        </button>
-                    </div>
-                    <p class="control-descripcion">
-                        Al activar: Se encenderá el ventilador de evacuación y se abrirán las puertas automáticamente
-                    </p>
-                </div>
-
-                <!-- Control de Ventilador -->
-                <div class="control-grupo">
-                    <h4>🌀 Ventilador de Evacuación</h4>
-                    <div class="botones-control">
-                        <button class="btn-control btn-ventilador-on" onclick="encenderVentilador()">
-                            <span class="btn-icono">🌀</span>
-                            <span class="btn-texto">Encender Ventilador</span>
-                        </button>
-                        <button class="btn-control btn-ventilador-off" onclick="apagarVentilador()">
-                            <span class="btn-icono">⏹️</span>
-                            <span class="btn-texto">Apagar Ventilador</span>
-                        </button>
-                    </div>
-                    <p class="control-descripcion">
-                        El ventilador ayuda a evacuar humo y gases en caso de emergencia
-                    </p>
-                </div>
-
-                <!-- Control de Servomotores -->
-                <div class="control-grupo">
-                    <h4>🚪 Puertas de Evacuación (Servomotores)</h4>
-                    <div class="botones-control">
-                        <button class="btn-control btn-servo-abrir" onclick="abrirPuertas()">
-                            <span class="btn-icono">🔓</span>
-                            <span class="btn-texto">Abrir Puertas</span>
-                        </button>
-                        <button class="btn-control btn-servo-cerrar" onclick="cerrarPuertas()">
-                            <span class="btn-icono">🔒</span>
-                            <span class="btn-texto">Cerrar Puertas</span>
-                        </button>
-                    </div>
-                    <p class="control-descripcion">
-                        Control automático de puertas/ventanas para facilitar la evacuación
-                    </p>
-                </div>
-            </div>
         </section>
 
-        <!-- Resto del código se mantiene igual -->
-        <!-- Gráficos históricos -->
-        <section class="graficos-section">
-            <h2>📈 Histórico de Lecturas</h2>
-            
-            <div class="grafico-container">
-                <h3>Temperatura (Últimos 50 registros)</h3>
-                <canvas id="grafico-temperatura"></canvas>
-            </div>
-            
-            <div class="grafico-container">
-                <h3>Humo (Últimos 50 registros)</h3>
-                <canvas id="grafico-humo"></canvas>
-            </div>
-        </section>
-
-        <!-- Registro de alertas -->
+        <!-- 3. REGISTRO DE ALERTAS -->
         <section class="alertas-section">
             <h2>🚨 Registro de Alertas</h2>
             <div id="lista-alertas" class="lista-alertas">
@@ -173,37 +197,19 @@
             </div>
         </section>
 
-        <!-- Leyenda de niveles -->
-        <section class="leyenda-section">
-            <h3>📋 Niveles de Alerta</h3>
-            <div class="leyenda-grid">
-                <div class="leyenda-item bajo">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>BAJO</strong>
-                        <p>Temp: &lt;25°C | Humo: &lt;100 ppm</p>
-                    </div>
+        <!-- 4. HISTÓRICO DE LECTURAS (Grid 2 columnas) -->
+        <section class="graficos-section">
+            <h2>📈 Histórico de Lecturas</h2>
+            
+            <div class="graficos-grid">
+                <div class="grafico-container">
+                    <h3>Temperatura (Últimos 50 registros)</h3>
+                    <canvas id="grafico-temperatura"></canvas>
                 </div>
-                <div class="leyenda-item normal">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>NORMAL</strong>
-                        <p>Temp: 25-40°C | Humo: 100-200 ppm</p>
-                    </div>
-                </div>
-                <div class="leyenda-item alto">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>ALTO</strong>
-                        <p>Temp: 40-50°C | Humo: 200-300 ppm</p>
-                    </div>
-                </div>
-                <div class="leyenda-item peligro">
-                    <span class="leyenda-color"></span>
-                    <div>
-                        <strong>PELIGRO</strong>
-                        <p>Temp: &gt;60°C | Humo: &gt;400 ppm</p>
-                    </div>
+                
+                <div class="grafico-container">
+                    <h3>Humo (Últimos 50 registros)</h3>
+                    <canvas id="grafico-humo"></canvas>
                 </div>
             </div>
         </section>

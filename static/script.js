@@ -2,13 +2,21 @@
 let graficoTemperatura = null;
 let graficoHumo = null;
 let alertaActiva = false;
-let alertaCerradaManualmente = false;  // Nueva variable para controlar cierre manual
-let ultimoEstadoPeligro = false;       // Para detectar cambios de estado
-let tiempoUltimoCierre = 0;            // Timestamp del último cierre manual
-const TIEMPO_REABRIR = 30000;          // 30 segundos antes de poder reabrir
+let alertaCerradaManualmente = false;
+let tiempoUltimoCierre = 0;
+const TIEMPO_REABRIR = 30000; // 30 segundos
+
+// Variables para control de registro de alertas
+let ultimoEstadoPeligro = {
+    temperatura: false,
+    humo: false
+};
+let tiempoUltimaAlertaRegistrada = 0;
+const TIEMPO_MINIMO_ENTRE_ALERTAS = 10000; // 10 segundos entre alertas
 
 // Inicializar gráficos al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Página cargada - Inicializando sistema');
     inicializarGraficos();
     actualizar();
     actualizarHistorico();
@@ -57,8 +65,8 @@ function inicializarGraficos() {
             datasets: [{
                 label: 'Temperatura (°C)',
                 data: [],
-                borderColor: 'rgb(30, 60, 114)',
-                backgroundColor: 'rgba(30, 60, 114, 0.1)',
+                borderColor: 'rgb(30, 64, 175)',
+                backgroundColor: 'rgba(30, 64, 175, 0.1)',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4
@@ -73,8 +81,8 @@ function inicializarGraficos() {
             datasets: [{
                 label: 'Humo (ppm)',
                 data: [],
-                borderColor: 'rgb(220, 53, 69)',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4
@@ -104,44 +112,113 @@ function actualizar() {
             document.getElementById('estado-conexion').textContent = '● Conectado';
             document.getElementById('estado-conexion').className = 'conectado';
             
-            // Manejar alerta de emergencia
-            const tiempoActual = Date.now();
-            const tiempoDesdeUltimoCierre = tiempoActual - tiempoUltimoCierre;
+            // LÓGICA MEJORADA DE DETECCIÓN Y REGISTRO DE ALERTAS
+            const hayPeligroTemp = data.nivel_temperatura === 'peligro';
+            const hayPeligroHumo = data.nivel_humo === 'peligro';
+            const hayPeligro = hayPeligroTemp || hayPeligroHumo;
             
-            if (data.alerta) {
-                // HAY PELIGRO
-                if (!alertaActiva) {
-                    // La alerta no está visible actualmente
-                    if (!alertaCerradaManualmente || tiempoDesdeUltimoCierre > TIEMPO_REABRIR) {
-                        // Mostrar si: no fue cerrada manualmente O ya pasó el tiempo de espera
-                        mostrarAlertaEmergencia(data);
-                        alertaActiva = true;
-                        alertaCerradaManualmente = false; // Reset
-                    }
+            const tiempoActual = Date.now();
+            const tiempoTranscurrido = tiempoActual - tiempoUltimoCierre;
+            const tiempoDesdeUltimaAlerta = tiempoActual - tiempoUltimaAlertaRegistrada;
+            
+            console.log('🔍 Estado:', {
+                temp: data.temperatura,
+                humo: data.humo,
+                nivel_temp: data.nivel_temperatura,
+                nivel_humo: data.nivel_humo,
+                hayPeligro: hayPeligro,
+                alertaActiva: alertaActiva,
+                cerradaManualmente: alertaCerradaManualmente,
+                tiempoTranscurrido: Math.floor(tiempoTranscurrido / 1000) + 's'
+            });
+            
+            // DETECTAR CAMBIO DE ESTADO A PELIGRO (para registrar alerta)
+            const cambioPeligroTemp = hayPeligroTemp && !ultimoEstadoPeligro.temperatura;
+            const cambioPeligroHumo = hayPeligroHumo && !ultimoEstadoPeligro.humo;
+            const cambioPeligro = cambioPeligroTemp || cambioPeligroHumo;
+            
+            // REGISTRAR ALERTA SOLO CUANDO:
+            // 1. Hay un cambio de estado a peligro Y
+            // 2. Ha pasado el tiempo mínimo desde la última alerta
+            if (cambioPeligro && tiempoDesdeUltimaAlerta > TIEMPO_MINIMO_ENTRE_ALERTAS) {
+                console.log('📝 REGISTRANDO NUEVA ALERTA - Cambio de estado detectado');
+                registrarAlertaEnServidor(data, hayPeligroTemp, hayPeligroHumo);
+                tiempoUltimaAlertaRegistrada = tiempoActual;
+            }
+            
+            // LÓGICA SIMPLIFICADA PARA MOSTRAR MODAL DE ALERTA
+            if (hayPeligro) {
+                console.log('⚠️ HAY PELIGRO DETECTADO - Verificando si mostrar modal');
+                
+                // Verificar si la alerta fue cerrada manualmente recientemente
+                const fueCerradaRecientemente = alertaCerradaManualmente && tiempoTranscurrido < TIEMPO_REABRIR;
+                
+                if (!alertaActiva && !fueCerradaRecientemente) {
+                    console.log('🚨 MOSTRANDO MODAL DE ALERTA');
+                    mostrarAlertaEmergencia(data);
+                    alertaActiva = true;
+                } else if (fueCerradaRecientemente) {
+                    console.log('⏳ Alerta suprimida - Esperando ' + Math.ceil((TIEMPO_REABRIR - tiempoTranscurrido) / 1000) + 's más');
                 }
-                ultimoEstadoPeligro = true;
             } else {
-                // NO HAY PELIGRO
+                // No hay peligro - cerrar alerta visual si está activa
                 if (alertaActiva) {
-                    // Cerrar alerta automáticamente
+                    console.log('✅ Sin peligro - Cerrando alerta automáticamente');
                     ocultarAlertaEmergencia();
                     alertaActiva = false;
+                    // Reset cuando no hay peligro
+                    alertaCerradaManualmente = false;
                 }
-                // Reset completo cuando no hay peligro
-                alertaCerradaManualmente = false;
-                ultimoEstadoPeligro = false;
             }
+            
+            // Actualizar estado anterior para la próxima comparación
+            ultimoEstadoPeligro.temperatura = hayPeligroTemp;
+            ultimoEstadoPeligro.humo = hayPeligroHumo;
         })
         .catch(error => {
-            console.error('Error al actualizar:', error);
+            console.error('❌ Error al actualizar:', error);
             document.getElementById('estado-conexion').textContent = '● Desconectado';
             document.getElementById('estado-conexion').className = 'desconectado';
         });
 }
 
+// Función para registrar alerta en el servidor
+function registrarAlertaEnServidor(data, peligroTemp, peligroHumo) {
+    const tiposAlerta = [];
+    if (peligroTemp) tiposAlerta.push('temperatura');
+    if (peligroHumo) tiposAlerta.push('humo');
+    
+    fetch('/alertas/registrar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            temperatura: data.temperatura,
+            humo: data.humo,
+            tipo: tiposAlerta,
+            timestamp: new Date().toLocaleString()
+        })
+    })
+    .then(res => res.json())
+    .then(resultado => {
+        console.log('✅ Alerta registrada en servidor:', resultado);
+        // Actualizar la lista de alertas inmediatamente
+        actualizarAlertas();
+    })
+    .catch(error => {
+        console.error('❌ Error al registrar alerta:', error);
+    });
+}
+
 // Actualizar el estado visual de los indicadores
 function actualizarEstado(elementId, nivel) {
     const elemento = document.getElementById(elementId);
+    if (!elemento) {
+        console.error('No se encontró el elemento:', elementId);
+        return;
+    }
+    
     elemento.className = `estado-indicador ${nivel}`;
     
     const textos = {
@@ -152,36 +229,61 @@ function actualizarEstado(elementId, nivel) {
         'sin_datos': 'SIN DATOS'
     };
     
-    elemento.querySelector('.estado-texto').textContent = textos[nivel] || 'DESCONOCIDO';
+    const estadoTexto = elemento.querySelector('.estado-texto');
+    if (estadoTexto) {
+        estadoTexto.textContent = textos[nivel] || 'DESCONOCIDO';
+    }
 }
 
 // Mostrar alerta de emergencia
 function mostrarAlertaEmergencia(data) {
+    console.log('📢 Ejecutando mostrarAlertaEmergencia()');
+    
     const alertaDiv = document.getElementById('alerta-emergencia');
+    if (!alertaDiv) {
+        console.error('❌ No se encontró el elemento alerta-emergencia');
+        return;
+    }
+    
     const mensaje = document.getElementById('alerta-mensaje');
     const tempSpan = document.getElementById('alerta-temp');
     const humoSpan = document.getElementById('alerta-humo');
     
-    mensaje.textContent = 'Se han detectado niveles peligrosos. ¡Evacuar inmediatamente!';
-    tempSpan.textContent = `🌡️ ${data.temperatura.toFixed(1)}°C`;
-    humoSpan.textContent = `💨 ${data.humo.toFixed(1)} ppm`;
+    if (mensaje) mensaje.textContent = 'Se han detectado niveles peligrosos. ¡Evacuar inmediatamente!';
+    if (tempSpan) tempSpan.textContent = `🌡️ ${data.temperatura.toFixed(1)}°C`;
+    if (humoSpan) humoSpan.textContent = `💨 ${data.humo.toFixed(1)} ppm`;
     
+    // Remover clase oculto
     alertaDiv.classList.remove('oculto');
+    console.log('✅ Modal mostrado - Clases:', alertaDiv.className);
     
-    // Reproducir sonido de alerta (opcional)
+    // Reproducir sonido
     reproducirSonidoAlerta();
 }
 
 // Ocultar alerta de emergencia
 function ocultarAlertaEmergencia() {
-    document.getElementById('alerta-emergencia').classList.add('oculto');
+    console.log('🔇 Ocultando alerta de emergencia');
+    const alertaDiv = document.getElementById('alerta-emergencia');
+    if (alertaDiv) {
+        alertaDiv.classList.add('oculto');
+        console.log('✅ Modal oculto - Clases:', alertaDiv.className);
+    }
 }
 
 // Cerrar alerta manualmente
-function cerrarAlertaManual() {
+function cerrarAlertaManual(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('👆 Usuario cerró la alerta manualmente');
+    
     alertaCerradaManualmente = true;
     alertaActiva = false;
     tiempoUltimoCierre = Date.now();
+    
     ocultarAlertaEmergencia();
     
     const segundosEspera = TIEMPO_REABRIR / 1000;
@@ -191,24 +293,29 @@ function cerrarAlertaManual() {
     );
 }
 
-// Reproducir sonido de alerta (opcional)
+// Reproducir sonido de alerta
 function reproducirSonidoAlerta() {
-    // Crear un beep usando Web Audio API
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
-    
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+        
+        console.log('🔊 Sonido de alerta reproducido');
+    } catch (error) {
+        console.log('🔇 No se pudo reproducir el sonido:', error);
+    }
 }
 
 // Actualizar gráficos históricos
@@ -216,17 +323,15 @@ function actualizarHistorico() {
     fetch('/historico')
         .then(res => res.json())
         .then(data => {
-            // Actualizar gráfico de temperatura
             if (data.temperatura.length > 0) {
                 const labelsTemp = data.temperatura.map(d => d.time);
                 const valuesTemp = data.temperatura.map(d => d.value);
                 
                 graficoTemperatura.data.labels = labelsTemp;
                 graficoTemperatura.data.datasets[0].data = valuesTemp;
-                graficoTemperatura.update('none'); // Sin animación para mejor rendimiento
+                graficoTemperatura.update('none');
             }
             
-            // Actualizar gráfico de humo
             if (data.humo.length > 0) {
                 const labelsHumo = data.humo.map(d => d.time);
                 const valuesHumo = data.humo.map(d => d.value);
@@ -253,14 +358,16 @@ function actualizarAlertas() {
             } else {
                 listaAlertas.innerHTML = '';
                 
-                // Mostrar alertas en orden inverso (más reciente primero)
                 data.alertas.slice().reverse().forEach(alerta => {
                     const alertaDiv = document.createElement('div');
                     alertaDiv.className = 'alerta-item';
                     
-                    const tiposTexto = alerta.tipo.map(t => 
-                        t === 'temperatura' ? '🌡️ Temperatura' : '💨 Humo'
-                    ).join(' y ');
+                    const tiposTexto = alerta.tipo.map(t => {
+                        if (t === 'temperatura') return '🌡️ Temperatura';
+                        if (t === 'humo') return '💨 Humo';
+                        if (t === 'emergencia_manual') return '🚨 Emergencia Manual';
+                        return t;
+                    }).join(' y ');
                     
                     alertaDiv.innerHTML = `
                         <div class="alerta-item-header">
@@ -284,39 +391,30 @@ function actualizarAlertas() {
 
 // BOTÓN DE EMERGENCIA MANUAL
 function activarEmergenciaManual() {
-    // Confirmar acción
     if (!confirm('¿Está seguro de que desea activar el modo de emergencia? Esto encenderá el ventilador y abrirá las puertas.')) {
         return;
     }
     
-    // Mostrar notificación de activación
     mostrarNotificacion('🚨 Activando modo de emergencia...', 'info');
     
-    // Activar ventilador
-    fetch('/ventilador/on', {method: 'POST'})
+    fetch('/emergencia/manual', {method: 'POST'})
         .then(res => res.json())
         .then(data => {
-            console.log('Ventilador encendido:', data);
-            
-            // Abrir puertas después de un breve retraso
-            setTimeout(() => {
-                fetch('/servomotor/abrir', {method: 'POST'})
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log('Puertas abiertas:', data);
-                        
-                        // Mostrar notificación de éxito completa
-                        mostrarNotificacion('🚨 MODO DE EMERGENCIA ACTIVADO: Ventilador encendido y puertas abiertas', 'success');
-                    })
-                    .catch(error => {
-                        console.error('Error al abrir puertas:', error);
-                        mostrarNotificacion('❌ Error al abrir puertas en emergencia', 'error');
-                    });
-            }, 500);
+            if (data.success) {
+                // Registrar alerta manual
+                registrarAlertaEnServidor(
+                    {temperatura: 0, humo: 0}, 
+                    false, 
+                    false
+                );
+                mostrarNotificacion('🚨 MODO DE EMERGENCIA ACTIVADO: Ventilador encendido y puertas abiertas', 'success');
+            } else {
+                mostrarNotificacion(`❌ Error: ${data.mensaje || 'No se pudo activar la emergencia'}`, 'error');
+            }
         })
         .catch(error => {
-            console.error('Error al encender ventilador:', error);
-            mostrarNotificacion('❌ Error al encender ventilador en emergencia', 'error');
+            console.error('Error al activar emergencia:', error);
+            mostrarNotificacion('❌ Error al activar modo de emergencia', 'error');
         });
 }
 
@@ -379,36 +477,6 @@ function mostrarNotificacion(mensaje, tipo) {
     const notif = document.createElement('div');
     notif.className = `notificacion ${tipo}`;
     notif.textContent = mensaje;
-    
-    let bgColor;
-    switch(tipo) {
-        case 'success':
-            bgColor = '#28a745';
-            break;
-        case 'error':
-            bgColor = '#dc3545';
-            break;
-        case 'info':
-            bgColor = '#17a2b8';
-            break;
-        default:
-            bgColor = '#6c757d';
-    }
-    
-    notif.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 2rem;
-        background: ${bgColor};
-        color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 10000;
-        animation: slideInRight 0.3s ease;
-        max-width: 400px;
-        word-wrap: break-word;
-    `;
     
     document.body.appendChild(notif);
     
